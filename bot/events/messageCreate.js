@@ -12,6 +12,38 @@ module.exports = {
       return;
     }
 
+    // Anti-Invite / Bloqueador de links de outros servidores
+    const inviteRegex = /(discord\.(gg|io|me|li)\/.+|discord(app)?\.com\/invite\/.+)/i;
+    if (inviteRegex.test(message.content)) {
+      const isOwner = message.guild.ownerId === message.author.id;
+      const isAdmin = message.member?.permissions?.has?.('Administrator') || false;
+      const isStaff = message.member?.permissions?.has?.('ManageMessages') || false;
+      const isGlobal = authService?.isGlobalOwner?.(message.author.id) || false;
+
+      if (!isOwner && !isAdmin && !isStaff && !isGlobal) {
+        await message.delete().catch(() => {});
+        const warn = await message.channel.send(`⚠️ ${message.author}, links de convite de outros servidores do Discord não são permitidos aqui!`);
+        setTimeout(() => warn.delete().catch(() => {}), 6000);
+
+        try {
+          const logsChan = message.guild.channels.cache.find(c => c.name.includes('logs-staff'));
+          if (logsChan) {
+            const { EmbedBuilder } = require('discord.js');
+            const alertEmbed = new EmbedBuilder()
+              .setTitle('🛡️ Anti-Invite: Divulgação Bloqueada!')
+              .setColor(0xED4245)
+              .setDescription(`O usuário <@${message.author.id}> (\`${message.author.id}\`) enviou um link de convite em <#${message.channel.id}>.`)
+              .addFields(
+                { name: '💬 Mensagem Deletada', value: `\`\`\`${message.content.slice(0, 500)}\`\`\`` }
+              )
+              .setTimestamp();
+            await logsChan.send({ embeds: [alertEmbed] }).catch(() => {});
+          }
+        } catch {}
+        return;
+      }
+    }
+
     // 0. Avaliação Automática de Proteção (Anti-Spam / Anti-Raid / Menções em Massa)
     if (protectionService) {
       try {

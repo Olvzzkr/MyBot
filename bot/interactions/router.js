@@ -331,6 +331,76 @@ class InteractionRouter {
     if (customId === 'shop_cancel_checkout') {
       return interaction.update({ content: '❌ Compra cancelada.', embeds: [], components: [] });
     }
+
+    // 11. Sorteios - Participar / Sair
+    if (customId.startsWith('giveaway_enter:')) {
+      const giveawayId = parseInt(customId.split(':')[1], 10);
+      const giveaway = this.db.prepare('SELECT * FROM giveaways WHERE id = ?').get(giveawayId);
+      if (!giveaway || giveaway.status !== 'ACTIVE') {
+        return interaction.reply({ content: '❌ Este sorteio já foi encerrado!', ephemeral: true });
+      }
+
+      const exists = this.db.prepare('SELECT 1 FROM giveaway_entries WHERE giveaway_id = ? AND user_id = ?').get(giveawayId, interaction.user.id);
+      if (exists) {
+        this.db.prepare('DELETE FROM giveaway_entries WHERE giveaway_id = ? AND user_id = ?').run(giveawayId, interaction.user.id);
+        const countRow = this.db.prepare('SELECT COUNT(*) as c FROM giveaway_entries WHERE giveaway_id = ?').get(giveawayId);
+
+        const updatedRow = ActionRowBuilder.from(interaction.message.components[0]);
+        updatedRow.components[0].setLabel(`Participar (${countRow.c})`);
+        await interaction.message.edit({ components: [updatedRow] }).catch(() => {});
+
+        return interaction.reply({ content: '❌ Você removeu sua participação do sorteio.', ephemeral: true });
+      } else {
+        this.db.prepare('INSERT INTO giveaway_entries (giveaway_id, user_id) VALUES (?, ?)').run(giveawayId, interaction.user.id);
+        const countRow = this.db.prepare('SELECT COUNT(*) as c FROM giveaway_entries WHERE giveaway_id = ?').get(giveawayId);
+
+        const updatedRow = ActionRowBuilder.from(interaction.message.components[0]);
+        updatedRow.components[0].setLabel(`Participar (${countRow.c})`);
+        await interaction.message.edit({ components: [updatedRow] }).catch(() => {});
+
+        return interaction.reply({ content: '🎉 **Você entrou no sorteio com sucesso!** Boa sorte!', ephemeral: true });
+      }
+    }
+
+    // 12. Sugestões - Votação
+    if (customId.startsWith('sugg_up:') || customId.startsWith('sugg_down:')) {
+      const isUp = customId.startsWith('sugg_up:');
+      const suggId = parseInt(customId.split(':')[1], 10);
+      const voteType = isUp ? 1 : -1;
+
+      this.db.prepare(`
+        INSERT INTO suggestion_votes (suggestion_id, user_id, vote_type)
+        VALUES (?, ?, ?)
+        ON CONFLICT(suggestion_id, user_id) DO UPDATE SET vote_type = excluded.vote_type
+      `).run(suggId, interaction.user.id, voteType);
+
+      const upVotes = this.db.prepare('SELECT COUNT(*) as c FROM suggestion_votes WHERE suggestion_id = ? AND vote_type = 1').get(suggId)?.c || 0;
+      const downVotes = this.db.prepare('SELECT COUNT(*) as c FROM suggestion_votes WHERE suggestion_id = ? AND vote_type = -1').get(suggId)?.c || 0;
+
+      const updatedRow = ActionRowBuilder.from(interaction.message.components[0]);
+      updatedRow.components[0].setLabel(`Apoio (${upVotes})`);
+      updatedRow.components[1].setLabel(`Não Apoio (${downVotes})`);
+      await interaction.message.edit({ components: [updatedRow] }).catch(() => {});
+
+      return interaction.reply({ content: `✅ Voto registrado: **${isUp ? 'Apoio' : 'Não Apoio'}**!`, ephemeral: true });
+    }
+
+    // 13. Painel de Notificações - Alternar Cargos
+    if (customId.startsWith('toggle_role:')) {
+      const roleId = customId.split(':')[1];
+      const role = interaction.guild.roles.cache.get(roleId);
+      if (!role) {
+        return interaction.reply({ content: '❌ Cargo não encontrado no servidor.', ephemeral: true });
+      }
+
+      if (interaction.member.roles.cache.has(roleId)) {
+        await interaction.member.roles.remove(role, 'Notificação desativada pelo usuário').catch(() => {});
+        return interaction.reply({ content: `🔕 Notificação desativada! O cargo **${role.name}** foi removido.`, ephemeral: true });
+      } else {
+        await interaction.member.roles.add(role, 'Notificação ativada pelo usuário').catch(() => {});
+        return interaction.reply({ content: `🔔 Notificação ativada com sucesso! Você recebeu o cargo **${role.name}**.`, ephemeral: true });
+      }
+    }
   }
 
   async handleModalSubmit(interaction) {
@@ -616,6 +686,42 @@ class InteractionRouter {
         interaction,
         db: this.db
       });
+    }
+
+    // /sorteio
+    if (commandName === 'sorteio') {
+      const sorteioCmd = require('../commands/utilidades/sorteio');
+      return sorteioCmd.execute({ interaction, db: this.db });
+    }
+
+    // /anuncio
+    if (commandName === 'anuncio') {
+      const anuncioCmd = require('../commands/utilidades/anuncio');
+      return anuncioCmd.execute({ interaction, db: this.db });
+    }
+
+    // /reestoque
+    if (commandName === 'reestoque') {
+      const reestoqueCmd = require('../commands/vendas/reestoque');
+      return reestoqueCmd.execute({ interaction, db: this.db });
+    }
+
+    // /sugestao
+    if (commandName === 'sugestao') {
+      const sugestaoCmd = require('../commands/utilidades/sugestao');
+      return sugestaoCmd.execute({ interaction, db: this.db });
+    }
+
+    // /avaliar
+    if (commandName === 'avaliar') {
+      const avaliarCmd = require('../commands/vendas/avaliar');
+      return avaliarCmd.execute({ interaction, db: this.db });
+    }
+
+    // /minhascompras
+    if (commandName === 'minhascompras') {
+      const comprasCmd = require('../commands/vendas/minhascompras');
+      return comprasCmd.execute({ interaction, db: this.db });
     }
 
     // /protecao

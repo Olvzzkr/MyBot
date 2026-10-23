@@ -28,6 +28,7 @@ const ProtectionService = require('./services/protectionService');
 const protectionService = new ProtectionService(db);
 const SetupGalleryService = require('./services/setupGalleryService');
 const setupGalleryService = new SetupGalleryService(db);
+const StoreAutomationService = require('./services/storeAutomationService');
 
 // 3. Carregar Comandos
 const commandLoader = new CommandLoader();
@@ -61,10 +62,13 @@ function createClient(privileged = true) {
     partials: [Partials.Channel, Partials.Message, Partials.GuildMember]
   });
 
+  const storeAutomationService = new StoreAutomationService(cli, db);
+
   cli.once(readyEvent.name, (...args) => readyEvent.execute(...args, {
     db,
     guildsRepo,
-    commandLoader
+    commandLoader,
+    storeAutomationService
   }));
 
   cli.on(messageCreateEvent.name, (message) => messageCreateEvent.execute(message, {

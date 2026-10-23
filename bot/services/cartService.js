@@ -676,6 +676,37 @@ class CartService {
     // 4. Marcar como entregue no banco
     db.prepare('UPDATE cart_orders SET status = ?, updated_at = datetime(\'now\', \'utc\') WHERE cart_id = ?').run('DELIVERED', cartId);
 
+    // 4.1 Log Administrativo para a Staff e Atualização do Contador de Entregas
+    try {
+      const logsChan = guild.channels.cache.find(c => c.name.includes('logs-staff'));
+      if (logsChan) {
+        const logEmbed = new EmbedBuilder()
+          .setTitle('📦 Nova Entrega Concluída!')
+          .setColor(0x00FF88)
+          .addFields(
+            { name: '👤 Cliente', value: `<@${targetUser.id}> (\`${targetUser.id}\`)`, inline: true },
+            { name: '🛡️ Autorizado por', value: adminUser ? `<@${adminUser.id}>` : 'Sistema', inline: true },
+            { name: '💰 Valor', value: priceFormatted, inline: true },
+            { name: '📦 Produto(s)', value: productName }
+          )
+          .setTimestamp();
+        await logsChan.send({ embeds: [logEmbed] }).catch(() => {});
+      }
+    } catch (logErr) {
+      console.warn('[CartService] Erro ao registrar log administrativo:', logErr.message);
+    }
+
+    try {
+      const salesChan = guild.channels.cache.find(c => c.name.startsWith('📦・Entregas:'));
+      if (salesChan) {
+        const row = db.prepare("SELECT COUNT(*) as count FROM cart_orders WHERE guild_id = ? AND status = 'DELIVERED'").get(guild.id);
+        const total = (row?.count || 0) + 12;
+        await salesChan.setName(`📦・Entregas: ${total}`).catch(() => {});
+      }
+    } catch (countErr) {
+      console.warn('[CartService] Erro ao atualizar canal de entregas:', countErr.message);
+    }
+
     // 5. Excluir canal do carrinho após aviso
     const cartChannel = guild.channels.cache.get(cart.channel_id);
     if (cartChannel) {
