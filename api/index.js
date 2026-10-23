@@ -73,6 +73,16 @@ if (require.main === module) {
   server = app.listen(PORT, () => {
     console.log(`[API] Servidor backend rodando na porta ${PORT}`);
     console.log(`[API] Healthcheck disponível em: http://localhost:${PORT}/api/health`);
+
+    // Keep-alive anti-sleep para o Render Free
+    const renderUrl = process.env.RENDER_EXTERNAL_URL;
+    if (renderUrl) {
+      console.log(`[Keep-Alive] Ativando auto-ping 24/7 em: ${renderUrl}`);
+      const https = require('node:https');
+      setInterval(() => {
+        https.get(`${renderUrl}/api/health`, () => {}).on('error', () => {});
+      }, 10 * 60 * 1000);
+    }
   });
 }
 
