@@ -233,7 +233,7 @@ class InteractionRouter {
       const deliveryInput = new TextInputBuilder()
         .setCustomId('delivery_content')
         .setLabel('Link, Conta ou Instruções de Entrega')
-        .setPlaceholder('Cole aqui o link do convite, login e senha da conta, chave de ativação ou instruções para o cliente...')
+        .setPlaceholder('Cole aqui o link do convite, login/senha, chave de ativação ou instruções de entrega...')
         .setStyle(TextInputStyle.Paragraph)
         .setRequired(true);
 
@@ -281,7 +281,7 @@ class InteractionRouter {
       const deliveryInput = new TextInputBuilder()
         .setCustomId('delivery_content')
         .setLabel('Link, Conta ou Instruções de Entrega')
-        .setPlaceholder('Cole aqui o link do convite, login e senha da conta, chave de ativação ou instruções para o cliente...')
+        .setPlaceholder('Cole aqui o link do convite, login/senha, chave de ativação ou instruções de entrega...')
         .setStyle(TextInputStyle.Paragraph)
         .setRequired(true);
 
