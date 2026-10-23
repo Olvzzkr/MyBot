@@ -16,7 +16,7 @@ const db = getDatabase();
 runMigrations(db);
 
 const app = express();
-const PORT = process.env.API_PORT || 3001;
+const PORT = process.env.PORT || process.env.API_PORT || 3001;
 const CORS_ORIGIN = process.env.CORS_ORIGIN || 'http://localhost:5173';
 
 // Middlewares de Segurança

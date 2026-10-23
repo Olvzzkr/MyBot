@@ -4,6 +4,9 @@
   "description": "Sistema completo de bot multifuncional para Discord com API backend, painel web React e banco SQLite",
   "main": "bot/index.js",
   "type": "commonjs",
+  "engines": {
+    "node": ">=22.5.0"
+  },
   "scripts": {
     "start": "node scripts/start-dev.js",
     "build": "npm --prefix web install && npm --prefix web run build",
