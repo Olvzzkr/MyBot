@@ -6,7 +6,7 @@ const { EmbedBuilder, PermissionFlagsBits, ChannelType } = require('discord.js')
 
 module.exports = {
   name: 'anuncio',
-  aliases: ['comunicado', 'aviso', 'broadcast', 'notificar'],
+  aliases: ['comunicado', 'broadcast', 'notificar'],
   description: 'Publica um comunicado estilizado no canal selecionado com menção configurável',
   usage: '/anuncio titulo:"Título" mensagem:"Texto do anúncio" [canal:#canal] [mencao:everyone|here|nenhuma]',
 

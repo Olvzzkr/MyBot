@@ -700,6 +700,12 @@ class InteractionRouter {
       return anuncioCmd.execute({ interaction, db: this.db });
     }
 
+    // /aviso
+    if (commandName === 'aviso') {
+      const avisoCmd = require('../commands/utilidades/aviso');
+      return avisoCmd.execute({ interaction, db: this.db });
+    }
+
     // /reestoque
     if (commandName === 'reestoque') {
       const reestoqueCmd = require('../commands/vendas/reestoque');
