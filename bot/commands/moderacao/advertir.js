@@ -9,7 +9,7 @@ const ModerationRepository = require('../../../database/repositories/moderationR
 
 module.exports = {
   name: 'advertir',
-  aliases: ['warn', 'aviso'],
+  aliases: ['warn', 'advertencia'],
   description: 'Aplica uma advertência formal a um membro com motivo obrigatório',
   usage: '?advertir <@membro|ID> <motivo>',
   requiredPermission: PERMISSIONS.MODERATION_WARN,
