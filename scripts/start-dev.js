@@ -24,13 +24,13 @@ try {
 
 // 2. Iniciar API Backend
 console.log('[API Backend] Iniciando serviço Express...');
-const apiProcess = spawn(process.execPath, [path.join(__dirname, '../api/index.js')], {
+const apiProcess = spawn(process.execPath, ['--experimental-sqlite', path.join(__dirname, '../api/index.js')], {
   stdio: 'inherit'
 });
 
 // 3. Iniciar Bot Discord
 console.log('[Bot Discord] Iniciando cliente Discord.js...');
-const botProcess = spawn(process.execPath, [path.join(__dirname, '../bot/index.js')], {
+const botProcess = spawn(process.execPath, ['--experimental-sqlite', path.join(__dirname, '../bot/index.js')], {
   stdio: 'inherit'
 });
 
