@@ -62,7 +62,7 @@ module.exports = {
 
     // 4. Montar o Painel Estilizado
     const avisoEmbed = new EmbedBuilder()
-      .setTitle('📢 AVISO IMPORTANTE — REAL SHOP')
+      .setTitle('📢 REAL SHOP')
       .setColor(0xFEE75C) // Amarelo/Dourado chamativo e profissional
       .setDescription(text)
       .addFields(
