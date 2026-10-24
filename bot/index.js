@@ -137,6 +137,7 @@ if (!token || token === 'seu_token_do_bot_aqui') {
 
 module.exports = {
   client,
+  getClient: () => client,
   commandLoader,
   authService
 };
