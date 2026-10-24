@@ -780,7 +780,8 @@ class InteractionRouter {
 
     // /limpar
     if (commandName === 'limpar') {
-      const amount = options.getInteger('quantidade');
+      const rawAmount = options.getInteger('quantidade');
+      const amount = Math.min(Math.max(rawAmount || 10, 1), 100);
       await interaction.deferReply({ ephemeral: true });
       try {
         const deleted = await interaction.channel.bulkDelete(amount, true);
