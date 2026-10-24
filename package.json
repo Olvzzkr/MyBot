@@ -8,7 +8,7 @@
     "node": ">=22.5.0"
   },
   "scripts": {
-    "start": "node --experimental-sqlite scripts/start-dev.js",
+    "start": "node --experimental-sqlite server.js",
     "build": "npm --prefix web install && npm --prefix web run build",
     "dev": "node --experimental-sqlite scripts/start-dev.js",
     "bot": "node --experimental-sqlite bot/index.js",

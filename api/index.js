@@ -71,7 +71,9 @@ app.use((err, req, res, next) => {
 });
 
 let server = null;
-if (require.main === module) {
+
+function startServer() {
+  if (server) return server;
   server = app.listen(PORT, () => {
     console.log(`[API] Servidor backend rodando na porta ${PORT}`);
     console.log(`[API] Healthcheck disponível em: http://localhost:${PORT}/api/health`);
@@ -86,9 +88,15 @@ if (require.main === module) {
       }, 10 * 60 * 1000);
     }
   });
+  return server;
+}
+
+if (require.main === module) {
+  startServer();
 }
 
 module.exports = {
   app,
-  server
+  server,
+  startServer
 };
