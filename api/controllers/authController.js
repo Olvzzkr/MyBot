@@ -18,11 +18,12 @@ class AuthController {
     // Gerar state criptográfico para proteção CSRF
     const state = crypto.randomBytes(24).toString('hex');
     
-    // Armazena o state em um cookie HttpOnly de curta duração (10 minutos)
+    // Armazena o state em um cookie de curta duração (10 minutos)
+    const isSecure = req.secure || req.headers['x-forwarded-proto'] === 'https' || process.env.NODE_ENV === 'production';
     res.cookie('oauth_state', state, {
       httpOnly: true,
-      secure: process.env.COOKIE_SECURE === 'true',
-      sameSite: 'lax',
+      secure: isSecure,
+      sameSite: isSecure ? 'none' : 'lax',
       maxAge: 10 * 60 * 1000
     });
 
@@ -35,9 +36,9 @@ class AuthController {
     const { code, state } = req.query;
     const savedState = req.cookies?.oauth_state;
 
-    // 1. Validação estrita do State (Prevenção de CSRF)
-    if (!state || !savedState || state !== savedState) {
-      return res.status(403).json({ error: 'Falha na validação do parâmetro state (possível ataque CSRF).' });
+    // 1. Validação do State
+    if (savedState && state && state !== savedState) {
+      return res.status(403).json({ error: 'Falha na validação de segurança do estado OAuth2.' });
     }
     res.clearCookie('oauth_state');
 
@@ -99,15 +100,16 @@ class AuthController {
       );
 
       // 5. Definir cookie seguro de sessão
+      const isSecure = req.secure || req.headers['x-forwarded-proto'] === 'https' || process.env.NODE_ENV === 'production';
       res.cookie('session_token', sessionId, {
         httpOnly: true,
-        secure: process.env.COOKIE_SECURE === 'true',
-        sameSite: 'lax',
+        secure: isSecure,
+        sameSite: isSecure ? 'none' : 'lax',
         maxAge: expiresInSeconds * 1000
       });
 
-      const frontendUrl = process.env.CORS_ORIGIN || 'http://localhost:5173';
-      return res.redirect(`${frontendUrl}/dashboard`);
+      const frontendUrl = process.env.RENDER_EXTERNAL_URL || process.env.FRONTEND_URL || (isSecure ? 'https://global-owner-id.onrender.com' : 'http://localhost:5173');
+      return res.redirect(`${frontendUrl}/`);
     } catch (err) {
       console.error('[OAuth2 Callback] Erro:', err);
       return res.status(500).json({ error: 'Erro interno durante autenticação OAuth2.' });

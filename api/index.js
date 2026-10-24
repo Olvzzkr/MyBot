@@ -16,6 +16,8 @@ const db = getDatabase();
 runMigrations(db);
 
 const app = express();
+app.set('trust proxy', 1); // Necessário para cookies e HTTPS atrás do proxy do Render
+
 const PORT = process.env.PORT || process.env.API_PORT || 3001;
 const CORS_ORIGIN = process.env.CORS_ORIGIN || 'http://localhost:5173';
 
