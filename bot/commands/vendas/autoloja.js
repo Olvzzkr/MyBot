@@ -28,6 +28,7 @@ const STORE_STRUCTURE = [
     category: 'D1scord',
     channels: [
       { name: '⭐・1mpulso・membro', topic: 'Impulsos (Boosts) para servidores do Discord' },
+      { name: '⭐・c0nta・v1rgem', topic: 'Contas Discord Virgens com Nitro Resgatável' },
       { name: '⭐・c0nta・n1tro', topic: 'Contas Discord com Nitro ativo' },
       { name: '⭐・n1tro・link', topic: 'Links promocionais de ativação Nitro' },
       { name: '⭐・n1tro・gift', topic: 'Códigos Gift Nitro mensais e anuais' },

@@ -15,20 +15,26 @@ const {
 const PixService = require('./pixService');
 const ReceiptService = require('./receiptService');
 const { resolveProductChannel } = require('../utils/channelResolver');
+const { getDatabase } = require('../../database/connection');
 
 // Catálogo Global Unificado de Produtos
 const PRODUCT_CATALOG = {
   // Discord & Nitro
-  nitro_1m: { id: 'nitro_1m', name: 'Conta com 1 Mês de Nitro Ativado (2x Impulsos)', price: 13.90, category: 'Discord' },
-  nitro_1y: { id: 'nitro_1y', name: 'Conta com 1 Ano de Nitro (12 Meses + 2x Impulsos)', price: 29.90, category: 'Discord' },
-  link_1m: { id: 'link_1m', name: 'Nitro Link Mensal (1 Mês)', price: 8.90, category: 'Discord' },
-  link_3m: { id: 'link_3m', name: 'Nitro Link Trimensal (3 Meses)', price: 18.90, category: 'Discord' },
-  ativacao_nitro: { id: 'ativacao_nitro', name: 'Ativação NITRO LINK na sua Conta', price: 16.90, category: 'Discord' },
-  boost_2x_30d: { id: 'boost_2x_30d', name: '2x Impulsos de Servidor (30 Dias)', price: 6.90, category: 'Impulsos' },
-  boost_7x_30d: { id: 'boost_7x_30d', name: '7x Impulsos de Servidor (30 Dias)', price: 21.90, category: 'Impulsos' },
-  boost_14x_30d: { id: 'boost_14x_30d', name: '14x Impulsos de Servidor (30 Dias)', price: 42.90, category: 'Impulsos' },
-  boost_14x_3m: { id: 'boost_14x_3m', name: '14x Impulsos de Servidor (3 Meses)', price: 99.90, category: 'Impulsos' },
-  boost_14x_1y: { id: 'boost_14x_1y', name: '14x Impulsos de Servidor (1 Ano)', price: 179.90, category: 'Impulsos' },
+  conta_virgem: { id: 'conta_virgem', name: 'Conta Virgem Discord (Full Acesso + Nitro Resgatável)', price: 1.50, category: 'Discord' },
+  conta_virgem_5x: { id: 'conta_virgem_5x', name: 'Combo 5x Contas Virgens Discord (Full Acesso)', price: 6.90, category: 'Discord' },
+  nitro_1m: { id: 'nitro_1m', name: 'Conta com 1 Mês de Nitro Ativado (2x Impulsos)', price: 4.90, category: 'Discord' },
+  nitro_3m: { id: 'nitro_3m', name: 'Conta com 3 Meses de Nitro Ativado (2x Impulsos)', price: 6.90, category: 'Discord' },
+  nitro_1y: { id: 'nitro_1y', name: 'Conta com 1 Ano de Nitro (12 Meses + 2x Impulsos)', price: 8.99, category: 'Discord' },
+  link_1m: { id: 'link_1m', name: 'Nitro Link Mensal (1 Mês)', price: 1.99, category: 'Discord' },
+  link_3m: { id: 'link_3m', name: 'Nitro Link Trimensal (3 Meses)', price: 3.90, category: 'Discord' },
+  ativacao_nitro: { id: 'ativacao_nitro', name: 'Ativação NITRO LINK na sua Conta', price: 9.90, category: 'Discord' },
+  boost_2x_30d: { id: 'boost_2x_30d', name: '2x Impulsos Mensais (30 Dias)', price: 7.99, category: 'Impulsos' },
+  boost_4x_30d: { id: 'boost_4x_30d', name: '4x Impulsos Mensais (30 Dias)', price: 13.90, category: 'Impulsos' },
+  boost_6x_30d: { id: 'boost_6x_30d', name: '6x Impulsos Mensais (30 Dias)', price: 16.90, category: 'Impulsos' },
+  boost_8x_30d: { id: 'boost_8x_30d', name: '8x Impulsos Mensais (Nível 2 - 30 Dias)', price: 18.90, category: 'Impulsos' },
+  boost_14x_30d: { id: 'boost_14x_30d', name: '14x Impulsos Mensais (Nível 3 - 30 Dias)', price: 24.90, category: 'Impulsos' },
+  boost_14x_3m: { id: 'boost_14x_3m', name: '14x Impulsos Trimestrais (Nível 3 - 3 Meses)', price: 59.90, category: 'Impulsos' },
+  boost_14x_1y: { id: 'boost_14x_1y', name: '14x Impulsos Anuais (Nível 3 - 1 Ano)', price: 119.90, category: 'Impulsos' },
   conta_2025: { id: 'conta_2025', name: 'Conta Antiga Discord (Criada em 2025)', price: 11.90, category: 'Contas Antigas' },
   conta_2024: { id: 'conta_2024', name: 'Conta Antiga Discord (Criada em 2024)', price: 13.90, category: 'Contas Antigas' },
   conta_2023: { id: 'conta_2023', name: 'Conta Antiga Discord (Criada em 2023)', price: 16.90, category: 'Contas Antigas' },
@@ -40,10 +46,10 @@ const PRODUCT_CATALOG = {
   conta_2017: { id: 'conta_2017', name: 'Conta Antiga Discord (Criada em 2017)', price: 179.90, category: 'Contas Antigas' },
   conta_2016: { id: 'conta_2016', name: 'Conta Antiga Discord (Criada em 2016)', price: 289.90, category: 'Contas Antigas' },
   conta_2015: { id: 'conta_2015', name: 'Conta Antiga Discord (Criada em 2015)', price: 499.00, category: 'Contas Antigas' },
-  membros_100: { id: 'membros_100', name: '100 Membros Reais no Servidor', price: 11.90, category: 'Membros' },
-  membros_300: { id: 'membros_300', name: '300 Membros Reais no Servidor', price: 29.90, category: 'Membros' },
-  membros_500: { id: 'membros_500', name: '500 Membros Reais no Servidor', price: 44.90, category: 'Membros' },
-  membros_1000: { id: 'membros_1000', name: '1000 Membros Reais no Servidor', price: 79.90, category: 'Membros' },
+  membros_100: { id: 'membros_100', name: '100 Membros Reais no Servidor', price: 4.90, category: 'Membros' },
+  membros_300: { id: 'membros_300', name: '300 Membros Reais no Servidor', price: 11.90, category: 'Membros' },
+  membros_500: { id: 'membros_500', name: '500 Membros Reais no Servidor', price: 17.90, category: 'Membros' },
+  membros_1000: { id: 'membros_1000', name: '1000 Membros Reais no Servidor', price: 29.90, category: 'Membros' },
 
   // Free Fire & Cheats
   external_1d: { id: 'external_1d', name: 'Painel Emulador External (1 Dia)', price: 11.90, category: 'Free Fire' },
@@ -134,8 +140,147 @@ class CartService {
     return PRODUCT_CATALOG;
   }
 
-  static getProduct(productId) {
-    return PRODUCT_CATALOG[productId] || null;
+  static getProduct(productId, db) {
+    const prod = PRODUCT_CATALOG[productId];
+    if (!prod) return null;
+
+    try {
+      const database = db || (typeof getDatabase === 'function' ? getDatabase() : null);
+      if (database) {
+        const row = database.prepare('SELECT price FROM product_prices WHERE product_id = ?').get(productId);
+        if (row && typeof row.price === 'number') {
+          return { ...prod, price: Number(row.price) };
+        }
+      }
+    } catch {}
+
+    return { ...prod };
+  }
+
+  static initPrices(db) {
+    const database = db || (typeof getDatabase === 'function' ? getDatabase() : null);
+    if (!database) return;
+    try {
+      database.exec(`
+        CREATE TABLE IF NOT EXISTS product_prices (
+          product_id TEXT PRIMARY KEY,
+          price REAL NOT NULL,
+          default_price REAL,
+          updated_at TEXT NOT NULL DEFAULT (datetime('now', 'utc')),
+          updated_by TEXT
+        );
+      `);
+
+      // 1. Carregar preços customizados salvos no banco para o catálogo em memória
+      const rows = database.prepare('SELECT product_id, price FROM product_prices').all();
+      for (const row of rows) {
+        if (PRODUCT_CATALOG[row.product_id]) {
+          PRODUCT_CATALOG[row.product_id].price = Number(row.price);
+        }
+      }
+
+      // 2. Garantir que todos os produtos do PRODUCT_CATALOG estejam registrados na tabela
+      const insertStmt = database.prepare(`
+        INSERT OR IGNORE INTO product_prices (product_id, price, default_price, updated_at, updated_by)
+        VALUES (?, ?, ?, datetime('now', 'utc'), 'CATALOG_DEFAULT')
+      `);
+      for (const [id, item] of Object.entries(PRODUCT_CATALOG)) {
+        insertStmt.run(id, item.price, item.price);
+      }
+    } catch (err) {
+      console.error('[CartService] Erro ao carregar preços personalizados:', err);
+    }
+  }
+
+  static getCategories() {
+    const cats = new Set();
+    for (const p of Object.values(PRODUCT_CATALOG)) {
+      cats.add(p.category);
+    }
+    return Array.from(cats);
+  }
+
+  static findProduct(query) {
+    if (!query) return null;
+    const q = String(query).toLowerCase().trim();
+    if (PRODUCT_CATALOG[q]) return PRODUCT_CATALOG[q];
+
+    // Busca exata pelo nome
+    for (const p of Object.values(PRODUCT_CATALOG)) {
+      if (p.name.toLowerCase() === q) return p;
+    }
+
+    // Busca por inclusão no ID ou nome
+    for (const p of Object.values(PRODUCT_CATALOG)) {
+      if (p.id.toLowerCase().includes(q) || p.name.toLowerCase().includes(q)) {
+        return p;
+      }
+    }
+
+    return null;
+  }
+
+  static setProductPrice(productId, newPrice, updatedBy, db) {
+    const prod = PRODUCT_CATALOG[productId];
+    if (!prod) return { success: false, error: 'Produto não encontrado.' };
+
+    const priceNum = Number(String(newPrice).replace(',', '.'));
+    if (isNaN(priceNum) || priceNum < 0) {
+      return { success: false, error: 'Preço inválido. Digite um valor numérico positivo (ex: 14.90).' };
+    }
+
+    const oldPrice = prod.price;
+    prod.price = Math.round(priceNum * 100) / 100;
+
+    const database = db || (typeof getDatabase === 'function' ? getDatabase() : null);
+    if (database) {
+      try {
+        database.prepare(`
+          INSERT INTO product_prices (product_id, price, default_price, updated_at, updated_by)
+          VALUES (?, ?, ?, datetime('now', 'utc'), ?)
+          ON CONFLICT(product_id) DO UPDATE SET
+            price = excluded.price,
+            updated_at = excluded.updated_at,
+            updated_by = excluded.updated_by
+        `).run(productId, prod.price, oldPrice, updatedBy || 'SYSTEM');
+      } catch (err) {
+        console.error('[CartService] Erro ao salvar preço no banco:', err);
+      }
+    }
+
+    return { success: true, oldPrice, newPrice: prod.price, product: prod };
+  }
+
+  static adjustCategoryPrices(category, percentage, updatedBy, db) {
+    const percentNum = Number(String(percentage).replace(',', '.'));
+    if (isNaN(percentNum)) return { success: false, error: 'Porcentagem inválida. Informe um número como 10 ou -15.' };
+
+    const factor = 1 + (percentNum / 100);
+    const updated = [];
+    const database = db || (typeof getDatabase === 'function' ? getDatabase() : null);
+
+    for (const [id, prod] of Object.entries(PRODUCT_CATALOG)) {
+      if (!category || category === 'ALL' || prod.category.toLowerCase() === category.toLowerCase()) {
+        const oldPrice = prod.price;
+        const newPrice = Math.max(0.01, Math.round((oldPrice * factor) * 100) / 100);
+        prod.price = newPrice;
+        if (database) {
+          try {
+            database.prepare(`
+              INSERT INTO product_prices (product_id, price, default_price, updated_at, updated_by)
+              VALUES (?, ?, ?, datetime('now', 'utc'), ?)
+              ON CONFLICT(product_id) DO UPDATE SET
+                price = excluded.price,
+                updated_at = excluded.updated_at,
+                updated_by = excluded.updated_by
+            `).run(id, newPrice, oldPrice, updatedBy || 'SYSTEM');
+          } catch (e) {}
+        }
+        updated.push({ id, name: prod.name, oldPrice, newPrice });
+      }
+    }
+
+    return { success: true, count: updated.length, updated };
   }
 
   /**
@@ -143,7 +288,7 @@ class CartService {
    */
   static async handleProductSelect(interaction, productId, db) {
     const { guild, user } = interaction;
-    const prod = this.getProduct(productId);
+    const prod = this.getProduct(productId, db);
 
     if (!prod) {
       return interaction.reply({
@@ -165,6 +310,12 @@ class CartService {
         const updated = this.getCart(existing.cart_id, db);
         await this.updateCartMessage(channel, updated, guild);
 
+        if (interaction.replied || interaction.deferred) {
+          return interaction.followUp({
+            content: `🛒 **${prod.name}** foi adicionado ao seu carrinho existente!\n👉 Acesse seu carrinho: <#${channel.id}>`,
+            ephemeral: true
+          });
+        }
         return interaction.reply({
           content: `🛒 **${prod.name}** foi adicionado ao seu carrinho existente!\n👉 Acesse seu carrinho: <#${channel.id}>`,
           ephemeral: true
@@ -172,7 +323,9 @@ class CartService {
       }
     }
 
-    await interaction.deferReply({ ephemeral: true });
+    if (!interaction.replied && !interaction.deferred) {
+      await interaction.deferReply({ ephemeral: true }).catch(() => {});
+    }
 
     // 2. Localizar ou criar Categoria 🛒 CARRINHOS
     let category = guild.channels.cache.find(
@@ -293,16 +446,31 @@ class CartService {
         components
       });
 
-      // Salvar message_id se necessário
-      return interaction.editReply({
-        content: `✅ **Carrinho Criado com Sucesso!**\n📦 Produto: **${prod.name}** (\`R$ ${prod.price.toFixed(2)}\`)\n👉 Clique aqui para ir ao seu carrinho: <#${cartChannel.id}>`
-      });
+      if (interaction.deferred) {
+        return interaction.editReply({
+          content: `✅ **Carrinho Criado com Sucesso!**\n📦 Produto: **${prod.name}** (\`R$ ${prod.price.toFixed(2)}\`)\n👉 Clique aqui para ir ao seu carrinho: <#${cartChannel.id}>`
+        });
+      } else if (!interaction.replied) {
+        return interaction.reply({
+          content: `✅ **Carrinho Criado com Sucesso!**\n📦 Produto: **${prod.name}** (\`R$ ${prod.price.toFixed(2)}\`)\n👉 Clique aqui para ir ao seu carrinho: <#${cartChannel.id}>`,
+          ephemeral: true
+        });
+      }
 
     } catch (err) {
       console.error('Erro ao criar carrinho de compras:', err);
-      return interaction.editReply({
-        content: `❌ Ocorreu um erro ao abrir seu carrinho: ${err.message}`
-      });
+      try {
+        if (interaction.deferred) {
+          return interaction.editReply({
+            content: `❌ Ocorreu um erro ao abrir seu carrinho: ${err.message}`
+          });
+        } else if (!interaction.replied) {
+          return interaction.reply({
+            content: `❌ Ocorreu um erro ao abrir seu carrinho: ${err.message}`,
+            ephemeral: true
+          });
+        }
+      } catch {}
     }
   }
 
@@ -332,13 +500,15 @@ class CartService {
     const cart = this.getCart(cartId, db);
     if (!cart) return;
 
+    const currentProd = this.getProduct(prod.id, db) || prod;
     const items = cart.items || [];
-    const existingIndex = items.findIndex(i => i.id === prod.id);
+    const existingIndex = items.findIndex(i => i.id === currentProd.id);
 
     if (existingIndex > -1) {
       items[existingIndex].quantity = (items[existingIndex].quantity || 1) + 1;
+      items[existingIndex].price = currentProd.price;
     } else {
-      items.push({ id: prod.id, name: prod.name, price: prod.price, quantity: 1 });
+      items.push({ id: currentProd.id, name: currentProd.name, price: currentProd.price, quantity: 1 });
     }
 
     this.recalculateAndUpdate(cartId, items, cart.coupon_code, db);
@@ -437,7 +607,7 @@ class CartService {
       : '⚠️ Nenhum produto no carrinho.';
 
     const embed = new EmbedBuilder()
-      .setTitle('🛒 SEU CARRINHO DE COMPRAS — BLACKSHOP')
+      .setTitle('🛒 SEU CARRINHO DE COMPRAS — REALSHOP')
       .setColor(0x2B2D31)
       .setDescription(
         `👤 **Cliente:** <@${cart.user_id}>\n` +
@@ -450,7 +620,7 @@ class CartService {
         `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
         `⚡ Clique em **Confirmar Pagamento** abaixo para gerar o seu **PIX Copia e Cola & QR Code**!`
       )
-      .setFooter({ text: 'BlackShop • Entrega Rápida & Garantia' })
+      .setFooter({ text: 'RealShop • Entrega Rápida & Garantia' })
       .setTimestamp();
 
     // Linha 1: Controles de Produtos e Cupom
@@ -517,7 +687,11 @@ class CartService {
   static async renderPixCheckout(interaction, cartId, db) {
     const cart = this.getCart(cartId, db);
     if (!cart) {
-      return interaction.reply({ content: '❌ Carrinho não encontrado.', ephemeral: true });
+      const msg = '❌ **Este carrinho expirou ou não foi localizado.** Por favor, selecione o produto novamente no canal de vendas para abrir um novo carrinho!';
+      if (interaction.replied || interaction.deferred) {
+        return interaction.followUp({ content: msg, ephemeral: true });
+      }
+      return interaction.reply({ content: msg, ephemeral: true });
     }
 
     const { guild, user } = interaction;
@@ -546,22 +720,19 @@ class CartService {
     const qrAttachment = new AttachmentBuilder(qrBuffer, { name: 'pix_qrcode.png' });
 
     const embed = new EmbedBuilder()
-      .setTitle('💠 PAGAMENTO VIA PIX — BLACKSHOP')
+      .setTitle('💠 PAGAMENTO VIA PIX — REALSHOP')
       .setColor(0x2B2D31)
       .setDescription(
         `Olá <@${user.id}>, seu pedido está aguardando pagamento!\n\n` +
-        `💰 **Valor a Pagar:** **\`R$ ${amount.toFixed(2)}\`**\n` +
-        `👤 **Beneficiário:** \`${pixSettings.beneficiary_name}\`\n` +
-        `🔑 **Chave PIX (${pixSettings.key_type}):** \`${pixSettings.pix_key}\`\n\n` +
+        `💰 **Valor a Pagar:** **\`R$ ${amount.toFixed(2)}\`**\n\n` +
         `📱 **COMO PAGAR:**\n` +
         `1. Abra o app do seu banco ou carteira digital.\n` +
-        `2. Escolha a opção **PIX Copia e Cola** ou escaneie o **QR Code** abaixo.\n` +
-        `3. Cole o código fornecido abaixo e confirme o pagamento.\n` +
-        `4. Assim que pagar, clique no botão **✅ Já Paguei / Confirmar**!\n\n` +
-        `📋 **PIX COPIA E COLA:**\n\`\`\`\n${pixPayload}\n\`\`\``
+        `2. Escaneie o **QR Code** abaixo com a câmera do app.\n` +
+        `3. Ou clique no botão **Copiar Chave PIX** abaixo para transferir pela chave.\n` +
+        `4. Assim que pagar, clique no botão **✅ Já Paguei / Confirmar**!`
       )
       .setImage('attachment://pix_qrcode.png')
-      .setFooter({ text: 'O QR Code expira em 30 minutos • BlackShop' })
+      .setFooter({ text: 'O QR Code expira em 30 minutos • RealShop' })
       .setTimestamp();
 
     const row = new ActionRowBuilder().addComponents(
@@ -571,13 +742,23 @@ class CartService {
         .setEmoji('✅')
         .setStyle(ButtonStyle.Success),
       new ButtonBuilder()
+        .setCustomId(`cart_copy_key:${cartId}`)
+        .setLabel('Copiar Chave PIX')
+        .setEmoji('🔑')
+        .setStyle(ButtonStyle.Primary),
+      new ButtonBuilder()
+        .setCustomId(`cart_copy_payload:${cartId}`)
+        .setLabel('Copia e Cola')
+        .setEmoji('📋')
+        .setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder()
         .setCustomId(`cart_back_btn:${cartId}`)
-        .setLabel('Voltar ao Carrinho')
+        .setLabel('Voltar')
         .setEmoji('🔙')
         .setStyle(ButtonStyle.Secondary),
       new ButtonBuilder()
         .setCustomId(`cart_cancel_btn:${cartId}`)
-        .setLabel('Cancelar Pedido')
+        .setLabel('Cancelar')
         .setEmoji('❌')
         .setStyle(ButtonStyle.Danger)
     );
@@ -720,5 +901,9 @@ class CartService {
     }
   }
 }
+
+try {
+  CartService.initPrices();
+} catch (e) {}
 
 module.exports = CartService;

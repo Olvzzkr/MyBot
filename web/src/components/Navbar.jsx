@@ -34,6 +34,9 @@ export default function Navbar({ user, health, onLogout, selectedGuildId, onSele
             <option value="1562230954594934887" style={{ background: '#1c212d', color: '#fff' }}>
               BlackShop (1562230954594934887)
             </option>
+            <option value="1563369608205963325" style={{ background: '#1c212d', color: '#fff' }}>
+              ORG GHOST (1563369608205963325)
+            </option>
           </select>
         </div>
       </div>

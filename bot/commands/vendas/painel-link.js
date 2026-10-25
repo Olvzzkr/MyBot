@@ -38,6 +38,10 @@ module.exports = {
 
     const ativacaoChannelId = '1562242462230122558';
 
+    const CartService = require('../../services/cartService');
+    const p1m = CartService.getProduct('link_1m')?.price || 1.99;
+    const p3m = CartService.getProduct('link_3m')?.price || 3.90;
+
     const embed = new EmbedBuilder()
       .setTitle('NITRO LINK')
       .setColor(0x2B2D31)
@@ -46,7 +50,7 @@ module.exports = {
         `🧚 Será necessário possuir um cartão. Caso não tenha, adquira ativação conosco em: <#${ativacaoChannelId}>\n\n` +
         '🧚 A garantia do link é válida apenas no momento da compra. Recomendamos gravar todo o processo, pois sem gravação não realizamos trocas.\n\n\n' +
         '⚡ **Entrega Automática!**\n\n\n' +
-        'Preço: **De R$ 8,90 a R$ 18,90**'
+        `Preço: **A partir de R$ ${p1m.toFixed(2)}** *(Até R$ ${p3m.toFixed(2)})*`
       );
 
     if (fs.existsSync(logoPath)) {
@@ -63,13 +67,13 @@ module.exports = {
       .addOptions([
         {
           label: 'Nitro Link mensal (1mes)',
-          description: '💸 | Valor: R$ 8,90 • 📦 | Estoque: Esgotado',
+          description: `💸 | Valor: R$ ${p1m.toFixed(2)} • 📦 | Estoque: Disponível`,
           value: 'link_1m',
           emoji: '💸'
         },
         {
           label: 'Nitro Link trimensal (3mes)',
-          description: '💸 | Valor: R$ 18,90 • 📦 | Estoque: 12',
+          description: `💸 | Valor: R$ ${p3m.toFixed(2)} • 📦 | Estoque: Disponível`,
           value: 'link_3m',
           emoji: '💸'
         }

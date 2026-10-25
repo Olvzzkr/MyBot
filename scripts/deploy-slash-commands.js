@@ -7,7 +7,7 @@ require('dotenv').config();
 const { REST, Routes, SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
 
 const CLIENT_ID = process.env.DISCORD_CLIENT_ID || '1561883923301277716';
-const GUILDS = ['1553633196296511498', '1562230954594934887'];
+const GUILDS = ['1553633196296511498', '1562230954594934887', '1563369608205963325'];
 const TOKEN = process.env.DISCORD_BOT_TOKEN;
 
 const commands = [
@@ -292,24 +292,56 @@ const commands = [
       ))
     .addStringOption(opt => opt.setName('nome').setDescription('Nome do Beneficiário (ex: BlackShop)').setRequired(false))
     .addStringOption(opt => opt.setName('cidade').setDescription('Cidade do Beneficiário (ex: Sao Paulo)').setRequired(false))
+    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+
+  // 38. /precos
+  new SlashCommandBuilder()
+    .setName('precos')
+    .setDescription('Painel interativo para visualizar e alterar os preços de todos os produtos da loja')
+    .addStringOption(opt =>
+      opt.setName('produto')
+        .setDescription('ID ou nome do produto para alteração direta (opcional)')
+        .setRequired(false)
+    )
+    .addNumberOption(opt =>
+      opt.setName('novo_preco')
+        .setDescription('Novo valor em R$ para o produto (opcional)')
+        .setRequired(false)
+    )
+    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+
+  // 39. /painel-virgem
+  new SlashCommandBuilder()
+    .setName('painel-virgem')
+    .setDescription('Envia o painel oficial de Contas Virgens Discord no canal atual')
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
 ].map(c => c.toJSON());
 
 const rest = new REST({ version: '10' }).setToken(TOKEN);
 
-async function deploy() {
-  for (const guildId of GUILDS) {
-    console.log(`[Slash] Registrando ${commands.length} comandos de barra (/) no servidor ${guildId}...`);
-    try {
-      const data = await rest.put(
-        Routes.applicationGuildCommands(CLIENT_ID, guildId),
-        { body: commands }
-      );
-      console.log(`[Slash] ✅ ${data.length} comandos registrados no servidor ${guildId}!`);
-    } catch (err) {
-      console.error(`[Slash] ❌ Erro ao registrar comandos na guilda ${guildId}:`, err);
-    }
+async function deployToGuild(guildId, clientId = CLIENT_ID, token = TOKEN) {
+  try {
+    const r = new REST({ version: '10' }).setToken(token);
+    const data = await r.put(
+      Routes.applicationGuildCommands(clientId, guildId),
+      { body: commands }
+    );
+    console.log(`[Slash] ✅ ${data.length} comandos registrados no servidor ${guildId}!`);
+    return data;
+  } catch (err) {
+    console.error(`[Slash] ❌ Erro ao registrar comandos na guilda ${guildId}:`, err.message);
   }
 }
 
-deploy();
+async function deploy() {
+  for (const guildId of GUILDS) {
+    console.log(`[Slash] Registrando ${commands.length} comandos de barra (/) no servidor ${guildId}...`);
+    await deployToGuild(guildId);
+  }
+}
+
+if (require.main === module) {
+  deploy();
+}
+
+module.exports = { commands, deployToGuild, deploy };

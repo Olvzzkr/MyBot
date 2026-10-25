@@ -75,10 +75,122 @@ class InteractionRouter {
       return this.handleSetupDelete(interaction);
     }
 
+    // 7.1 Painel de Gestão de Preços (Filtro por Categoria)
+    if (customId === 'price_select_category') {
+      const selectedCat = interaction.values[0];
+      const painelPrecosCmd = require('../commands/vendas/painel-precos');
+      const embed = painelPrecosCmd.buildPricePanelEmbed(selectedCat);
+      const components = painelPrecosCmd.buildPricePanelComponents(selectedCat);
+      return interaction.update({ embeds: [embed], components });
+    }
+
+    // 7.2 Painel de Gestão de Preços (Selecionar Produto para Editar Preço)
+    if (customId === 'price_select_product') {
+      const prodId = interaction.values[0];
+      const prod = CartService.getProduct(prodId);
+      if (!prod) {
+        return interaction.reply({ content: '⚠️ Produto não encontrado.', ephemeral: true });
+      }
+
+      const modal = new ModalBuilder()
+        .setCustomId(`modal_set_price:${prod.id}`)
+        .setTitle(`Editar: ${prod.name.slice(0, 30)}`);
+
+      const priceInput = new TextInputBuilder()
+        .setCustomId('new_price_input')
+        .setLabel('Novo Preço (R$)')
+        .setStyle(TextInputStyle.Short)
+        .setValue(prod.price.toFixed(2))
+        .setPlaceholder('Ex: 14.90 ou 9,90')
+        .setRequired(true);
+
+      const row = new ActionRowBuilder().addComponents(priceInput);
+      modal.addComponents(row);
+
+      return interaction.showModal(modal);
+    }
+
+    // 7.3 Painel de Gestão de Preços (Botão Reajuste em Massa)
+    if (customId === 'btn_price_bulk_modal') {
+      const modal = new ModalBuilder()
+        .setCustomId('modal_bulk_price')
+        .setTitle('Reajuste em Massa de Preços');
+
+      const percentInput = new TextInputBuilder()
+        .setCustomId('bulk_percent_input')
+        .setLabel('Porcentagem (+/- %)')
+        .setStyle(TextInputStyle.Short)
+        .setPlaceholder('Ex: 10 (aumenta 10%) ou -15 (reduz 15%)')
+        .setRequired(true);
+
+      const catInput = new TextInputBuilder()
+        .setCustomId('bulk_category_input')
+        .setLabel('Categoria (ALL para todas)')
+        .setStyle(TextInputStyle.Short)
+        .setValue('ALL')
+        .setRequired(false);
+
+      modal.addComponents(
+        new ActionRowBuilder().addComponents(percentInput),
+        new ActionRowBuilder().addComponents(catInput)
+      );
+
+      return interaction.showModal(modal);
+    }
+
+    // 7.4 Painel de Gestão de Preços (Botão Ver Tabela Completa)
+    if (customId === 'btn_price_view_all') {
+      const catalog = CartService.getCatalog();
+      const categories = CartService.getCategories();
+      
+      const embeds = [];
+      let currentDesc = '';
+      
+      for (const cat of categories) {
+        const prods = Object.values(catalog).filter(p => p.category === cat);
+        currentDesc += `\n### 📂 ${cat}\n`;
+        for (const p of prods) {
+          currentDesc += `• **${p.name}**: \`R$ ${p.price.toFixed(2)}\` *(ID: \`${p.id}\`)*\n`;
+        }
+      }
+
+      const chunks = [];
+      let temp = '';
+      for (const line of currentDesc.split('\n')) {
+        if ((temp + line).length > 3800) {
+          chunks.push(temp);
+          temp = '';
+        }
+        temp += line + '\n';
+      }
+      if (temp) chunks.push(temp);
+
+      for (let i = 0; i < chunks.length; i++) {
+        embeds.push(
+          new EmbedBuilder()
+            .setTitle(`📋 Tabela de Preços Oficial${chunks.length > 1 ? ` (Parte ${i + 1}/${chunks.length})` : ''}`)
+            .setColor(0x2B2D31)
+            .setDescription(chunks[i])
+            .setFooter({ text: 'Nexora Store • Use !preco <id> <valor> para alterar' })
+        );
+      }
+
+      return interaction.reply({ embeds: embeds.slice(0, 5), ephemeral: true });
+    }
+
+    // 7.5 Painel de Gestão de Preços (Botão Recarregar)
+    if (customId.startsWith('btn_price_refresh:')) {
+      const selectedCat = customId.split(':')[1] || 'ALL';
+      const painelPrecosCmd = require('../commands/vendas/painel-precos');
+      const embed = painelPrecosCmd.buildPricePanelEmbed(selectedCat);
+      const components = painelPrecosCmd.buildPricePanelComponents(selectedCat);
+      return interaction.update({ embeds: [embed], components });
+    }
+
     // 8. Seleções nos Painéis de Vendas -> Abre/Adiciona ao Carrinho Privado (carrinho-usuario-nomedoproduto)
     if (customId.startsWith('shop_select_')) {
       const selected = interaction.values[0];
-      if (selected === 'nitro_3m' || selected === 'link_1m' || selected === 'conta_2026') {
+      if (selected === 'conta_2026') {
         return interaction.reply({
           content: '❌ **Produto Esgotado!** No momento este item não possui estoque disponível.',
           ephemeral: true
@@ -88,6 +200,12 @@ class InteractionRouter {
     }
 
     // 8.1 Compras Diretas por Botão nos Painéis
+    if (customId === 'shop_buy_conta_virgem' || customId === 'shop_select_conta_virgem') {
+      return CartService.handleProductSelect(interaction, 'conta_virgem', this.db);
+    }
+    if (customId === 'shop_buy_conta_virgem_5x') {
+      return CartService.handleProductSelect(interaction, 'conta_virgem_5x', this.db);
+    }
     if (customId === 'shop_buy_ativacao') {
       return CartService.handleProductSelect(interaction, 'ativacao_nitro', this.db);
     }
@@ -172,7 +290,7 @@ class InteractionRouter {
     if (customId.startsWith('cart_add_select:')) {
       const cartId = customId.split(':')[1];
       const prodId = interaction.values[0];
-      const prod = CartService.getProduct(prodId);
+      const prod = CartService.getProduct(prodId, this.db);
       if (prod) {
         await CartService.addItemToCart(cartId, prod, this.db);
         const cart = CartService.getCart(cartId, this.db);
@@ -187,6 +305,31 @@ class InteractionRouter {
     if (customId.startsWith('cart_checkout_btn:')) {
       const cartId = customId.split(':')[1];
       return CartService.renderPixCheckout(interaction, cartId, this.db);
+    }
+
+    if (customId.startsWith('cart_copy_key:')) {
+      const PixService = require('../services/pixService');
+      const pixSettings = PixService.getSettings(this.db, interaction.guild?.id);
+      const pixKey = pixSettings.pix_key || '5b38ac46-01c8-456e-9d7f-3d4c9eb1c294';
+      return interaction.reply({
+        content: `🔑 **Chave PIX da Loja:**\n\`\`\`\n${pixKey}\n\`\`\`\n*(Basta tocar/clicar em cima do código acima para copiar instantaneamente)*`,
+        ephemeral: true
+      });
+    }
+
+    if (customId.startsWith('cart_copy_payload:')) {
+      const cartId = customId.split(':')[1];
+      const cart = CartService.getCart(cartId, this.db);
+      if (!cart || !cart.pix_code) {
+        return interaction.reply({
+          content: '⚠️ Código Copia e Cola não encontrado. Por favor, tente novamente.',
+          ephemeral: true
+        });
+      }
+      return interaction.reply({
+        content: `📋 **Código PIX Copia e Cola:**\n\`\`\`\n${cart.pix_code}\n\`\`\`\n*(Basta tocar/clicar em cima do código acima para colar no app do seu banco)*`,
+        ephemeral: true
+      });
     }
 
     if (customId.startsWith('cart_back_btn:')) {
@@ -437,6 +580,60 @@ class InteractionRouter {
           content: `❌ **Erro ao processar entrega:** ${err.message}`
         });
       }
+    }
+
+    // Modal para editar preço de produto específico
+    if (customId.startsWith('modal_set_price:')) {
+      const prodId = customId.split(':')[1];
+      const newPriceStr = fields.getTextInputValue('new_price_input');
+      const res = CartService.setProductPrice(prodId, newPriceStr, interaction.user.id, this.db);
+
+      if (!res.success) {
+        return interaction.reply({ content: `❌ ${res.error}`, ephemeral: true });
+      }
+
+      const embed = new EmbedBuilder()
+        .setTitle('✅ Preço Atualizado com Sucesso!')
+        .setColor(0x22C55E)
+        .setDescription(
+          `O novo valor do produto já está ativo em toda a loja e no banco de dados!\n\n` +
+          `📦 **Produto:** **${res.product.name}**\n` +
+          `🏷️ **ID:** \`${res.product.id}\`\n` +
+          `📂 **Categoria:** \`${res.product.category}\`\n\n` +
+          `💰 **Preço Anterior:** ~~R$ ${res.oldPrice.toFixed(2)}~~\n` +
+          `✨ **Novo Preço:** **R$ ${res.newPrice.toFixed(2)}**\n` +
+          `👤 **Modificado por:** <@${interaction.user.id}>`
+        )
+        .setFooter({ text: 'Nexora Store • Os próximos carrinhos já utilizarão este preço' })
+        .setTimestamp();
+
+      return interaction.reply({ embeds: [embed], ephemeral: true });
+    }
+
+    // Modal para reajuste em massa
+    if (customId === 'modal_bulk_price') {
+      const percentStr = fields.getTextInputValue('bulk_percent_input');
+      const categoryStr = fields.getTextInputValue('bulk_category_input') || 'ALL';
+      const res = CartService.adjustCategoryPrices(categoryStr, percentStr, interaction.user.id, this.db);
+
+      if (!res.success) {
+        return interaction.reply({ content: `❌ ${res.error}`, ephemeral: true });
+      }
+
+      const embed = new EmbedBuilder()
+        .setTitle('📈 Reajuste em Massa Concluído!')
+        .setColor(0x3B82F6)
+        .setDescription(
+          `Foram atualizados **${res.count} produtos** da categoria \`${categoryStr}\`.\n` +
+          `Taxa de reajuste aplicada: **${percentStr}%**\n\n` +
+          `Exemplos atualizados:\n` +
+          res.updated.slice(0, 8).map(u => `• **${u.name.slice(0, 30)}**: ~~R$ ${u.oldPrice.toFixed(2)}~~ ➔ **R$ ${u.newPrice.toFixed(2)}**`).join('\n') +
+          (res.updated.length > 8 ? `\n*...e mais ${res.updated.length - 8} produtos alterados.*` : '')
+        )
+        .setFooter({ text: 'Nexora Store • Reajuste aplicado com sucesso' })
+        .setTimestamp();
+
+      return interaction.reply({ embeds: [embed], ephemeral: true });
     }
   }
 
@@ -1137,6 +1334,58 @@ class InteractionRouter {
       return configPixCmd.execute({ interaction, db: this.db });
     }
 
+    // /precos
+    if (commandName === 'precos') {
+      const painelPrecosCmd = require('../commands/vendas/painel-precos');
+      const produtoOpt = interaction.options.getString('produto');
+      const novoPrecoOpt = interaction.options.getNumber('novo_preco');
+
+      if (produtoOpt && novoPrecoOpt !== null) {
+        const prod = CartService.findProduct(produtoOpt);
+        if (!prod) {
+          return interaction.reply({
+            content: `❌ Produto não encontrado para o termo: \`${produtoOpt}\`.`,
+            ephemeral: true
+          });
+        }
+
+        const res = CartService.setProductPrice(prod.id, novoPrecoOpt, user.id, this.db);
+        if (!res.success) {
+          return interaction.reply({ content: `❌ ${res.error}`, ephemeral: true });
+        }
+
+        const embed = new EmbedBuilder()
+          .setTitle('✅ Preço Atualizado com Sucesso!')
+          .setColor(0x22C55E)
+          .setDescription(
+            `📦 **Produto:** **${prod.name}**\n` +
+            `🏷️ **ID:** \`${prod.id}\`\n` +
+            `💰 **Preço Anterior:** ~~R$ ${res.oldPrice.toFixed(2)}~~\n` +
+            `✨ **Novo Preço:** **R$ ${res.newPrice.toFixed(2)}**\n` +
+            `👤 **Atualizado por:** <@${user.id}>`
+          )
+          .setFooter({ text: 'Nexora Store • Alteração aplicada no catálogo e banco de dados' });
+
+        return interaction.reply({ embeds: [embed] });
+      }
+
+      return painelPrecosCmd.execute({ interaction, db: this.db });
+    }
+
+    // /painel-virgem
+    if (commandName === 'painel-virgem') {
+      const painelVirgemCmd = require('../commands/vendas/painel-contas-virgens');
+      const fakeMessage = {
+        guild,
+        channel: interaction.channel,
+        member,
+        author: user,
+        reply: (opts) => interaction.reply(opts)
+      };
+      await painelVirgemCmd.execute({ message: fakeMessage });
+      return interaction.reply({ content: '✅ Painel de Contas Virgens publicado com sucesso!', ephemeral: true });
+    }
+
     // Default fallback
     return interaction.reply({
       content: `⚡ Comando de barra \`/${commandName}\` recebido e processado com sucesso!`,
@@ -1385,6 +1634,11 @@ class InteractionRouter {
       return interaction.reply({ content: '⚠️ Opção inválida.', ephemeral: true });
     }
 
+    const p = CartService.getProduct(selected);
+    if (p && prod) {
+      prod.price = `R$ ${p.price.toFixed(2)}`;
+    }
+
     const embed = new EmbedBuilder()
       .setTitle('🛒 Carrinho de Compras - BlackShop')
       .setColor(0xFEE75C)
@@ -1435,6 +1689,11 @@ class InteractionRouter {
       return interaction.reply({ content: '⚠️ Opção inválida.', ephemeral: true });
     }
 
+    const p = CartService.getProduct(selected);
+    if (p && prod) {
+      prod.price = `R$ ${p.price.toFixed(2)}`;
+    }
+
     const embed = new EmbedBuilder()
       .setTitle('🛒 Carrinho de Compras - BlackShop')
       .setColor(0x57F287)
@@ -1480,6 +1739,11 @@ class InteractionRouter {
     const prod = products[selected];
     if (!prod) {
       return interaction.reply({ content: '⚠️ Opção inválida.', ephemeral: true });
+    }
+
+    const p = CartService.getProduct(selected);
+    if (p && prod) {
+      prod.price = `R$ ${p.price.toFixed(2)}`;
     }
 
     const embed = new EmbedBuilder()
@@ -1542,6 +1806,11 @@ class InteractionRouter {
       return interaction.reply({ content: '⚠️ Opção inválida.', ephemeral: true });
     }
 
+    const p = CartService.getProduct(selected);
+    if (p && prod) {
+      prod.price = `R$ ${p.price.toFixed(2)}`;
+    }
+
     const embed = new EmbedBuilder()
       .setTitle('🛒 Carrinho de Compras - BlackShop')
       .setColor(0x5865F2)
@@ -1586,6 +1855,11 @@ class InteractionRouter {
     const prod = products[selected];
     if (!prod) {
       return interaction.reply({ content: '⚠️ Opção inválida.', ephemeral: true });
+    }
+
+    const p = CartService.getProduct(selected);
+    if (p && prod) {
+      prod.price = `R$ ${p.price.toFixed(2)}`;
     }
 
     const embed = new EmbedBuilder()
@@ -1664,6 +1938,11 @@ class InteractionRouter {
     const prod = products[selected];
     if (!prod) {
       return interaction.reply({ content: '⚠️ Opção inválida.', ephemeral: true });
+    }
+
+    const p = CartService.getProduct(selected);
+    if (p && prod) {
+      prod.price = `R$ ${p.price.toFixed(2)}`;
     }
 
     const embed = new EmbedBuilder()
@@ -1839,6 +2118,11 @@ class InteractionRouter {
       return interaction.reply({ content: '⚠️ Opção inválida.', ephemeral: true });
     }
 
+    const p = CartService.getProduct(selected);
+    if (p && prod) {
+      prod.price = `R$ ${p.price.toFixed(2)}`;
+    }
+
     const embed = new EmbedBuilder()
       .setTitle('🛒 Carrinho de Compras - BlackShop')
       .setColor(0x2B2D31)
@@ -1960,22 +2244,18 @@ class InteractionRouter {
 
   async handleShopSelectGamePass(interaction) {
     const selected = interaction.values[0];
-    const products = {
-      gamepass_90d: { name: 'XBOX GAME PASS ULTIMATE 90 DIAS', price: 'R$ 8,99', stock: 5 },
-      gamepass_console_90d: { name: 'XBOX GAME PASS ULTIMATE (CONSOLE) 90 DIAS', price: 'R$ 8,99', stock: 11 },
-      gamepass_pc_90d: { name: 'XBOX GAME PASS ULTIMATE (PC) 90 DIAS', price: 'R$ 8,99', stock: 6 }
-    };
-    const prod = products[selected];
-    if (!prod) return interaction.reply({ content: '⚠️ Opção inválida.', ephemeral: true });
+    const p = CartService.getProduct(selected, this.db);
+    const prodName = p ? p.name : 'XBOX GAME PASS ULTIMATE';
+    const prodPrice = p ? `R$ ${p.price.toFixed(2)}` : 'R$ 19,90';
 
     const embed = new EmbedBuilder()
       .setTitle('🛒 Carrinho de Compras - BlackShop')
       .setColor(0x2B2D31)
       .setDescription(
-        `Você selecionou:\n### 🎮 **${prod.name}**\n\n` +
-        `💰 **Valor:** \`${prod.price}\`\n` +
-        `📦 **Estoque:** \`${prod.stock} disponíveis\`\n` +
-        `⚡ **Entrega:** Automática e instantânea via DM após o pagamento!\n` +
+        `Você selecionou:\n### 🎮 **${prodName}**\n\n` +
+        `💰 **Valor:** \`${prodPrice}\`\n` +
+        `📦 **Estoque:** \`Disponível Imediato\`\n` +
+        `⚡ **Entrega:** Automática e instantânea após o pagamento!\n` +
         `🎮 **Compatível:** PC / Console / TV / XCloud`
       )
       .setFooter({ text: 'Clique no botão abaixo para prosseguir com a compra.' });
@@ -1988,12 +2268,15 @@ class InteractionRouter {
   }
 
   async handleShopBuyMinecraft(interaction) {
+    const p = CartService.getProduct('minecraft_nfa', this.db);
+    const prodPrice = p ? `R$ ${p.price.toFixed(2)}` : 'R$ 22,90';
+
     const embed = new EmbedBuilder()
       .setTitle('🛒 Carrinho de Compras - BlackShop')
       .setColor(0x2B2D31)
       .setDescription(
         'Você selecionou:\n### ⛏️ **MINECRAFT ORIGINAL JAVA + BEDROCK (NFA)**\n\n' +
-        '💰 **Valor:** `R$ 9,90`\n' +
+        `💰 **Valor:** \`${prodPrice}\`\n` +
         '📦 **Estoque:** `Disponível Ilimitado (∞)`\n' +
         '⚡ **Entrega:** Automática e instantânea via DM após o pagamento!\n' +
         '🛡️ **Garantia:** Conta completa nfa com estabilidade e suporte garantido!'
@@ -2009,23 +2292,17 @@ class InteractionRouter {
 
   async handleShopSelectSteamGames(interaction) {
     const selected = interaction.values[0];
-    const products = {
-      steam_gta5: { name: 'CONTA STEAM COM OS 2 GTA 5 ( 100% ONLINE )', price: 'R$ 9,90', stock: '∞' },
-      steam_rdr2: { name: 'CONTA COM RED DEAD 2 ( 100% ONLINE )', price: 'R$ 9,90', stock: '∞' },
-      steam_fc26: { name: 'CONTA COM STEAM COM EA SPORTS FC 26 ( 100% ONLINE )', price: 'R$ 9,90', stock: '∞' },
-      steam_gow: { name: 'CONTA COM GOD OF WAR RAGNAROK ( 100% ONLINE )', price: 'R$ 9,90', stock: '∞' },
-      steam_forza: { name: 'CONTA COM FORZA HORIZON 6 ( 100% ONLINE )', price: 'R$ 9,90', stock: '∞' }
-    };
-    const prod = products[selected];
-    if (!prod) return interaction.reply({ content: '⚠️ Opção inválida.', ephemeral: true });
+    const p = CartService.getProduct(selected, this.db);
+    const prodName = p ? p.name : 'CONTA STEAM';
+    const prodPrice = p ? `R$ ${p.price.toFixed(2)}` : 'R$ 9,90';
 
     const embed = new EmbedBuilder()
       .setTitle('🛒 Carrinho de Compras - BlackShop')
       .setColor(0x2B2D31)
       .setDescription(
-        `Você selecionou:\n### 🎮 **${prod.name}**\n\n` +
-        `💰 **Valor:** \`${prod.price}\`\n` +
-        `📦 **Estoque:** \`${prod.stock} disponíveis\`\n` +
+        `Você selecionou:\n### 🎮 **${prodName}**\n\n` +
+        `💰 **Valor:** \`${prodPrice}\`\n` +
+        `📦 **Estoque:** \`Disponível Imediato\`\n` +
         `⚡ **Entrega:** Automática e instantânea via DM após o pagamento!\n` +
         `🛡️ **Segurança:** Acesso exclusivo e verificado`
       )
@@ -2040,22 +2317,17 @@ class InteractionRouter {
 
   async handleShopSelectCS2Ext(interaction) {
     const selected = interaction.values[0];
-    const products = {
-      cs2_diario: { name: 'CS2 External (Diário)', price: 'R$ 24,90', stock: '∞' },
-      cs2_semanal: { name: 'CS2 External (Semanal)', price: 'R$ 64,90', stock: '∞' },
-      cs2_mensal: { name: 'CS2 External (Mensal)', price: 'R$ 109,90', stock: '∞' },
-      cs2_180dias: { name: 'CS2 External (180 Dias)', price: 'R$ 389,00', stock: '∞' }
-    };
-    const prod = products[selected];
-    if (!prod) return interaction.reply({ content: '⚠️ Opção inválida.', ephemeral: true });
+    const p = CartService.getProduct(selected, this.db);
+    const prodName = p ? p.name : 'CS2 External';
+    const prodPrice = p ? `R$ ${p.price.toFixed(2)}` : 'R$ 24,90';
 
     const embed = new EmbedBuilder()
       .setTitle('🛒 Carrinho de Compras - BlackShop')
       .setColor(0x2B2D31)
       .setDescription(
-        `Você selecionou:\n### 🔫 **${prod.name}**\n\n` +
-        `💰 **Valor:** \`${prod.price}\`\n` +
-        `📦 **Estoque:** \`${prod.stock} disponíveis\`\n` +
+        `Você selecionou:\n### 🔫 **${prodName}**\n\n` +
+        `💰 **Valor:** \`${prodPrice}\`\n` +
+        `📦 **Estoque:** \`Disponível Imediato\`\n` +
         `⚡ **Entrega:** Automática e instantânea via DM após o pagamento!\n` +
         `🛡️ **Segurança:** 100% Indetectável e Seguro (Sem Risco de VAC)`
       )
@@ -2070,23 +2342,17 @@ class InteractionRouter {
 
   async handleShopSelectSteamHours(interaction) {
     const selected = interaction.values[0];
-    const products = {
-      hours_500: { name: 'Steam Hours Boost (500 Horas + 100 Bônus)', price: 'R$ 9,90', stock: '∞' },
-      hours_1000: { name: 'Steam Hours Boost (1000 Horas + 200 Bônus)', price: 'R$ 19,90', stock: '∞' },
-      hours_2000: { name: 'Steam Hours Boost (2000 Horas + 500 Bônus)', price: 'R$ 39,90', stock: '∞' },
-      hours_4000: { name: 'Steam Hours Boost (4000 Horas + 1000 Bônus)', price: 'R$ 89,90', stock: '∞' },
-      hours_vitalicio: { name: 'Steam Hours Boost Vitalício', price: 'R$ 249,00', stock: '∞' }
-    };
-    const prod = products[selected];
-    if (!prod) return interaction.reply({ content: '⚠️ Opção inválida.', ephemeral: true });
+    const p = CartService.getProduct(selected, this.db);
+    const prodName = p ? p.name : 'Steam Hours Boost';
+    const prodPrice = p ? `R$ ${p.price.toFixed(2)}` : 'R$ 9,90';
 
     const embed = new EmbedBuilder()
       .setTitle('🛒 Carrinho de Compras - BlackShop')
       .setColor(0x2B2D31)
       .setDescription(
-        `Você selecionou:\n### ⏱️ **${prod.name}**\n\n` +
-        `💰 **Valor:** \`${prod.price}\`\n` +
-        `📦 **Estoque:** \`${prod.stock} disponíveis\`\n` +
+        `Você selecionou:\n### ⏱️ **${prodName}**\n\n` +
+        `💰 **Valor:** \`${prodPrice}\`\n` +
+        `📦 **Estoque:** \`Disponível Imediato\`\n` +
         `⚡ **Entrega:** Automática e instantânea via DM após o pagamento!\n` +
         `🌐 **Funcionamento:** Não precisa deixar PC ligado nem jogo aberto!`
       )
@@ -2150,6 +2416,11 @@ class InteractionRouter {
       ];
     }
 
+    const p = CartService.getProduct(selected);
+    if (p && prod) {
+      prod.price = `R$ ${p.price.toFixed(2)}`;
+    }
+
     const embed = new EmbedBuilder()
       .setTitle(`🛒 Seleção de Opções — ${title}`)
       .setColor(0x2B2D31)
@@ -2172,21 +2443,17 @@ class InteractionRouter {
 
   async handleShopSelectCapcut(interaction) {
     const selected = interaction.values[0];
-    const products = {
-      capcut_pc: { name: 'CapCut Pro - PC Permanente', price: 'R$ 5,99', stock: '∞' },
-      capcut_android: { name: 'CapCut Pro - Android Permanente', price: 'R$ 4,99', stock: '∞' },
-      capcut_combo: { name: 'CapCut Pro - PC + Android (Combo)', price: 'R$ 8,99', stock: '∞' }
-    };
-    const prod = products[selected];
-    if (!prod) return interaction.reply({ content: '⚠️ Opção inválida.', ephemeral: true });
+    const p = CartService.getProduct(selected, this.db);
+    const prodName = p ? p.name : 'CapCut Pro';
+    const prodPrice = p ? `R$ ${p.price.toFixed(2)}` : 'R$ 5,99';
 
     const embed = new EmbedBuilder()
       .setTitle('🛒 Carrinho de Compras - BlackShop')
       .setColor(0x2B2D31)
       .setDescription(
-        `Você selecionou:\n### 🎞️ **${prod.name}**\n\n` +
-        `💰 **Valor:** \`${prod.price}\`\n` +
-        `📦 **Estoque:** \`${prod.stock} disponíveis\`\n` +
+        `Você selecionou:\n### 🎞️ **${prodName}**\n\n` +
+        `💰 **Valor:** \`${prodPrice}\`\n` +
+        `📦 **Estoque:** \`Disponível Imediato\`\n` +
         `⚡ **Entrega:** Automática e instantânea via DM após o pagamento!\n` +
         `🛡️ **Ativação:** 100% Permanente e simples de instalar`
       )
@@ -2201,94 +2468,7 @@ class InteractionRouter {
 
   async handleShopCheckout(interaction) {
     const selected = interaction.customId.split(':')[1];
-    const products = {
-      capcut_pc: { name: 'CapCut Pro - PC Permanente', price: 'R$ 5,99' },
-      capcut_android: { name: 'CapCut Pro - Android Permanente', price: 'R$ 4,99' },
-      capcut_combo: { name: 'CapCut Pro - PC + Android (Combo)', price: 'R$ 8,99' },
-      wallpaper_engine: { name: 'WALLPAPER ENGINE - PC PERMANENTE', price: 'R$ 3,99' },
-      pack_designer: { name: 'PACK DESIGNER (Mais de 50 mil PSDs)', price: 'R$ 2,99' },
-      nitro_1m: { name: 'Conta com 1 Mês de nitro ativado / 2X IMPULSOS', price: 'R$ 13,90' },
-      nitro_1y: { name: 'Conta Com 1 Ano de nitro (12 Mês) / 2X IMPULSOS', price: 'R$ 29,90' },
-      link_1m: { name: 'Nitro Link mensal (1mes)', price: 'R$ 8,90' },
-      link_3m: { name: 'Nitro Link trimensal (3mes)', price: 'R$ 18,90' },
-      boost_2x_30d: { name: '2x Impulsos (Nível 1 - 30 Dias)', price: 'R$ 6,90' },
-      boost_7x_30d: { name: '7x Impulsos (Nível 2 - 30 Dias)', price: 'R$ 21,90' },
-      boost_14x_30d: { name: '14x Impulsos (Nível 3 - 30 Dias)', price: 'R$ 42,90' },
-      boost_14x_3m: { name: '14x Impulsos (Nível 3 - 3 Meses)', price: 'R$ 99,90' },
-      boost_14x_1y: { name: '14x Impulsos (Nível 3 - 1 Ano)', price: 'R$ 179,90' },
-      conta_2025: { name: 'Conta 2025', price: 'R$ 11,90' },
-      conta_2024: { name: 'Conta 2024', price: 'R$ 13,90' },
-      conta_2023: { name: 'Conta 2023', price: 'R$ 16,90' },
-      conta_2022: { name: 'Conta 2022', price: 'R$ 22,90' },
-      conta_2021: { name: 'Conta 2021', price: 'R$ 31,90' },
-      conta_2020: { name: 'Conta 2020', price: 'R$ 49,90' },
-      conta_2019: { name: 'Conta 2019', price: 'R$ 79,90' },
-      conta_2018: { name: 'Conta 2018', price: 'R$ 119,90' },
-      conta_2017: { name: 'Conta 2017', price: 'R$ 179,90' },
-      conta_2016: { name: 'Conta 2016', price: 'R$ 289,90' },
-      conta_2015: { name: 'Conta 2015', price: 'R$ 499,00' },
-      membros_100: { name: '100 - Membros reais', price: 'R$ 11,90' },
-      membros_300: { name: '300 - Membros reais', price: 'R$ 29,90' },
-      membros_500: { name: '500 - Membros reais', price: 'R$ 44,90' },
-      membros_1000: { name: '1000 - Membros reais', price: 'R$ 79,90' },
-      ativacao_nitro: { name: 'Ativação NITRO LINK', price: 'R$ 16,90' },
-      external_1d: { name: 'Painel External (1 dia)', price: 'R$ 11,90' },
-      external_7d: { name: 'Painel External (7 dia)', price: 'R$ 29,90' },
-      external_30d: { name: 'Painel External (30 dia)', price: 'R$ 59,90' },
-      external_perm: { name: 'Painel External (Permanente)', price: 'R$ 119,90' },
-      xit_ff: { name: 'Painel Xit Free Fire • 100% HS (Permanente)', price: 'R$ 14,90' },
-      hs_pescoco: { name: 'HS Pescoço Permanente', price: 'R$ 11,90' },
-      holograma: { name: 'Holograma + Auxílio Permanente', price: 'R$ 15,90' },
-      aimbot_mobile: { name: 'Painel Aim Bot iOS e Android Permanente', price: 'R$ 18,90' },
-      otim_basico: { name: 'Pack de Otimização (Básico Windows)', price: 'R$ 8,90' },
-      otim_vip: { name: 'Pack de Otimização VIP (Completo PC & Jogos)', price: 'R$ 11,90' },
-      yt_link_1m: { name: 'YouTube Premium Link (1 Mês)', price: 'R$ 5,34' },
-      yt_conta_1m: { name: 'YouTube Premium na sua Conta (1 Mês)', price: 'R$ 14,90' },
-      prime_1tela: { name: 'Prime Video (30 Dias - 1 Tela Privada)', price: 'R$ 4,55' },
-      prime_completa: { name: 'Prime Video (30 Dias - Conta Completa 4 Telas)', price: 'R$ 12,90' },
-      paramount_1tela: { name: 'Paramount+ (30 Dias - 1 Tela Privada)', price: 'R$ 4,60' },
-      paramount_completa: { name: 'Paramount+ (30 Dias - Conta Completa)', price: 'R$ 12,90' },
-      disney_1tela: { name: 'Disney+ Premium (30 Dias - 1 Tela Privada)', price: 'R$ 8,02' },
-      disney_completa: { name: 'Disney+ Premium (30 Dias - Conta Completa)', price: 'R$ 18,90' },
-      hbo_1tela: { name: 'HBO Max Standard (30 Dias - 1 Tela Privada)', price: 'R$ 4,81' },
-      hbo_completa: { name: 'HBO Max Platinum (30 Dias - Conta Completa 4K)', price: 'R$ 14,90' },
-      netflix_1tela: { name: 'Netflix Premium (30 Dias - 1 Tela Privada)', price: 'R$ 5,19' },
-      netflix_completa: { name: 'Netflix Premium (30 Dias - Conta Completa 4K)', price: 'R$ 16,90' },
-      crunchyroll_1tela: { name: 'Crunchyroll Fan (30 Dias - 1 Tela Privada)', price: 'R$ 3,69' },
-      crunchyroll_completa: { name: 'Crunchyroll Mega Fan (30 Dias - 4 Telas)', price: 'R$ 9,90' },
-      spot_link_1m: { name: 'Spotify 1 mes – LINK', price: 'R$ 5,50' },
-      spot_link_3m: { name: 'Spotify 3 mes – LINK', price: 'R$ 8,90' },
-      spot_conta_1m: { name: 'Conta Spotify 1 mes', price: 'R$ 15,90' },
-      spot_conta_1y: { name: 'Conta Spotify anual (1 ano)', price: 'R$ 39,90' },
-      gen_streaming: { name: 'Gerador Netflix/HBO/Disney/Prime Video', price: 'R$ 21,90' },
-      gen_yt: { name: 'Gerador de youtube premium', price: 'R$ 16,90' },
-      gen_spot: { name: 'Gerador de spotify premium', price: 'R$ 16,90' },
-      gen_all: { name: 'TODOS GERADOR A CIMA!', price: 'R$ 32,90' },
-      gamepass_90d: { name: 'XBOX GAME PASS ULTIMATE 90 DIAS', price: 'R$ 19,90' },
-      gamepass_console_90d: { name: 'XBOX GAME PASS ULTIMATE (CONSOLE) 90 DIAS', price: 'R$ 19,90' },
-      gamepass_pc_90d: { name: 'XBOX GAME PASS ULTIMATE (PC) 90 DIAS', price: 'R$ 19,90' },
-      minecraft_nfa: { name: 'Minecraft Original Java + Bedrock (NFA)', price: 'R$ 22,90' },
-      steam_gta5: { name: 'CONTA STEAM COM OS 2 GTA 5 ( 100% ONLINE )', price: 'R$ 9,90' },
-      steam_rdr2: { name: 'CONTA COM RED DEAD 2 ( 100% ONLINE )', price: 'R$ 9,90' },
-      steam_fc26: { name: 'CONTA COM STEAM COM EA SPORTS FC 26 ( 100% ONLINE )', price: 'R$ 9,90' },
-      steam_gow: { name: 'CONTA COM GOD OF WAR RAGNAROK ( 100% ONLINE )', price: 'R$ 9,90' },
-      steam_forza: { name: 'CONTA COM FORZA HORIZON 6 ( 100% ONLINE )', price: 'R$ 9,90' },
-      cs2_diario: { name: 'CS2 External (Diário)', price: 'R$ 24,90' },
-      cs2_semanal: { name: 'CS2 External (Semanal)', price: 'R$ 64,90' },
-      cs2_mensal: { name: 'CS2 External (Mensal)', price: 'R$ 109,90' },
-      cs2_180dias: { name: 'CS2 External (180 Dias)', price: 'R$ 389,00' },
-      hours_500: { name: 'Steam Hours Boost (500 Horas + 100 Bônus)', price: 'R$ 9,90' },
-      hours_1000: { name: 'Steam Hours Boost (1000 Horas + 200 Bônus)', price: 'R$ 19,90' },
-      hours_2000: { name: 'Steam Hours Boost (2000 Horas + 500 Bônus)', price: 'R$ 39,90' },
-      hours_4000: { name: 'Steam Hours Boost (4000 Horas + 1000 Bônus)', price: 'R$ 89,90' },
-      hours_vitalicio: { name: 'Steam Hours Boost Vitalício', price: 'R$ 249,00' }
-    };
-    const prod = products[selected];
-
-    return interaction.reply({
-      content: `🛍️ **Pedido Criado com Sucesso!**\n\nVocê escolheu: **${prod?.name || 'Produto'}** (\`${prod?.price || 'R$ 4,99'}\`)\n\n📌 Para efetuar o pagamento via **PIX**, fale com um moderador em <#1562242410317218062> ou aguarde a confirmação automática!`,
-      ephemeral: true
-    });
+    return CartService.handleProductSelect(interaction, selected, this.db);
   }
 }
 

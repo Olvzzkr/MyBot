@@ -9,6 +9,10 @@ module.exports = {
     try {
       await interactionRouter.handleInteraction(interaction);
     } catch (err) {
+      if (err.code === 10062 || err.code === 40060) {
+        // Interação expirada ou já respondida pelo Discord
+        return;
+      }
       console.error('[InteractionCreate] Erro no processamento:', err);
       if (interaction.isRepliable()) {
         const errorMsg = { content: '❌ Ocorreu um erro ao responder a esta interação.', ephemeral: true };

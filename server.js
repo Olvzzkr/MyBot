@@ -16,6 +16,11 @@ try {
   const db = getDatabase();
   const migResult = runMigrations(db);
   console.log(`[Banco de Dados] ✅ SQLite pronto. Migrações: ${migResult.total} aplicadas.`);
+  
+  // Inicializar e carregar preços do catálogo de produtos
+  const CartService = require('./bot/services/cartService');
+  CartService.initPrices(db);
+  console.log('[CartService] ✅ Preços de produtos carregados e sincronizados com SQLite.');
 } catch (err) {
   console.error('[Banco de Dados] ❌ Falha crítica nas migrações:', err.message);
 }

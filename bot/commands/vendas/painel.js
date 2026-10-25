@@ -36,6 +36,11 @@ module.exports = {
       files.push(new AttachmentBuilder(bannerPath, { name: 'banner.png' }));
     }
 
+    const CartService = require('../../services/cartService');
+    const p1m = CartService.getProduct('nitro_1m')?.price || 4.90;
+    const p3m = CartService.getProduct('nitro_3m')?.price || 6.90;
+    const p1y = CartService.getProduct('nitro_1y')?.price || 8.99;
+
     const embed = new EmbedBuilder()
       .setTitle('Contas Nitrada')
       .setColor(0x2B2D31)
@@ -46,7 +51,7 @@ module.exports = {
         '🌪️ Contas pronta para uso imediato\n' +
         '🌪️ Recomendamos alterar os dados da conta assim que realizar o login\n\n' +
         '⚡ **Entrega Automática!**\n\n\n' +
-        'Preço: **De R$ 13,90 a R$ 29,90**'
+        `Preço: **A partir de R$ ${p1m.toFixed(2)}** *(Até R$ ${p1y.toFixed(2)})*`
       );
 
     if (fs.existsSync(logoPath)) {
@@ -63,19 +68,19 @@ module.exports = {
       .addOptions([
         {
           label: 'Conta com 1 Mês de nitro ativado / 2X IMPULSOS',
-          description: '💸 | Valor: R$ 13,90 • 📦 | Estoque: 7',
+          description: `💸 | Valor: R$ ${p1m.toFixed(2)} • 📦 | Estoque: Imediato`,
           value: 'nitro_1m',
           emoji: '💸'
         },
         {
           label: 'Conta com 3 Mês de nitro (3 Mês)',
-          description: '💸 | Valor: R$ 8,99 • 📦 | Estoque: Esgotado',
+          description: `💸 | Valor: R$ ${p3m.toFixed(2)} • 📦 | Estoque: Disponível`,
           value: 'nitro_3m',
           emoji: '💸'
         },
         {
           label: 'Conta Com 1 Ano de nitro (12 Mês) / 2X IMPULSOS',
-          description: '💸 | Valor: R$ 29,90 • 📦 | Estoque: 4',
+          description: `💸 | Valor: R$ ${p1y.toFixed(2)} • 📦 | Estoque: Disponível`,
           value: 'nitro_1y',
           emoji: '💸'
         }

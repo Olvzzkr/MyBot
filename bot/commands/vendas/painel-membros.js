@@ -36,6 +36,12 @@ module.exports = {
       files.push(new AttachmentBuilder(bannerPath, { name: 'banner_membros.jpg' }));
     }
 
+    const CartService = require('../../services/cartService');
+    const p100 = CartService.getProduct('membros_100')?.price || 4.90;
+    const p300 = CartService.getProduct('membros_300')?.price || 11.90;
+    const p500 = CartService.getProduct('membros_500')?.price || 17.90;
+    const p1000 = CartService.getProduct('membros_1000')?.price || 29.90;
+
     const embed = new EmbedBuilder()
       .setTitle('Membros reais')
       .setColor(0x2B2D31)
@@ -49,7 +55,7 @@ module.exports = {
         '👥 **entrega imediata.**\n\n' +
         '👥 **dúvidas? abra um <#1562242410317218062> que iremos explicar tudo para você!**\n\n\n' +
         '⚡ **Entrega Automática!**\n\n\n' +
-        'Preço: **De R$ 11,90 a R$ 79,90**'
+        `Preço: **A partir de R$ ${p100.toFixed(2)}** *(Até R$ ${p1000.toFixed(2)})*`
       );
 
     if (fs.existsSync(logoPath)) {
@@ -64,10 +70,10 @@ module.exports = {
       .setCustomId('shop_select_membros')
       .setPlaceholder('Selecione uma opção...')
       .addOptions([
-        { label: '100 - Membros reais', description: '💸 | Valor: R$ 11,90 • 📦 | Estoque: 6', value: 'membros_100', emoji: '💸' },
-        { label: '300 - Membros reais', description: '💸 | Valor: R$ 29,90 • 📦 | Estoque: 7', value: 'membros_300', emoji: '💸' },
-        { label: '500 - Membros reais', description: '💸 | Valor: R$ 44,90 • 📦 | Estoque: 12', value: 'membros_500', emoji: '💸' },
-        { label: '1000 - Membros reais', description: '💸 | Valor: R$ 79,90 • 📦 | Estoque: 3', value: 'membros_1000', emoji: '💸' }
+        { label: '100 - Membros reais', description: `💸 | Valor: R$ ${p100.toFixed(2)} • 📦 | Estoque: Imediato`, value: 'membros_100', emoji: '💸' },
+        { label: '300 - Membros reais', description: `💸 | Valor: R$ ${p300.toFixed(2)} • 📦 | Estoque: Imediato`, value: 'membros_300', emoji: '💸' },
+        { label: '500 - Membros reais', description: `💸 | Valor: R$ ${p500.toFixed(2)} • 📦 | Estoque: Imediato`, value: 'membros_500', emoji: '💸' },
+        { label: '1000 - Membros reais', description: `💸 | Valor: R$ ${p1000.toFixed(2)} • 📦 | Estoque: 8 Disponíveis`, value: 'membros_1000', emoji: '💸' }
       ]);
 
     const row = new ActionRowBuilder().addComponents(select);

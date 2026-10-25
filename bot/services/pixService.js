@@ -40,17 +40,17 @@ class PixService {
 
     return {
       guild_id: guildId,
-      pix_key: process.env.PIX_KEY || 'blackshop.pix@gmail.com',
-      key_type: process.env.PIX_KEY_TYPE || 'EMAIL',
-      beneficiary_name: process.env.PIX_BENEFICIARY_NAME || 'BLACKSHOP',
-      beneficiary_city: process.env.PIX_BENEFICIARY_CITY || 'SAO PAULO'
+      pix_key: process.env.PIX_KEY || '5b38ac46-01c8-456e-9d7f-3d4c9eb1c294',
+      key_type: process.env.PIX_KEY_TYPE || 'ALEATORIA',
+      beneficiary_name: process.env.PIX_BENEFICIARY_NAME || 'DAVI DE S O DA SILVA',
+      beneficiary_city: process.env.PIX_BENEFICIARY_CITY || 'FORTALEZA'
     };
   }
 
   /**
    * Salva configurações de PIX
    */
-  static saveSettings(db, guildId, { pixKey, keyType = 'EMAIL', beneficiaryName = 'BLACKSHOP', beneficiaryCity = 'SAO PAULO' }) {
+  static saveSettings(db, guildId, { pixKey, keyType = 'CHAVE', beneficiaryName = 'REALSHOP', beneficiaryCity = 'SAO PAULO' }) {
     db.prepare(`
       INSERT INTO pix_settings (guild_id, pix_key, key_type, beneficiary_name, beneficiary_city, updated_at)
       VALUES (?, ?, ?, ?, ?, datetime('now', 'utc'))
@@ -66,8 +66,8 @@ class PixService {
   /**
    * Gera o Copia e Cola Oficial do PIX
    */
-  static generatePayload({ key, name = 'BLACKSHOP', city = 'SAO PAULO', amount, txId = '***' }) {
-    const cleanName = (name || 'BLACKSHOP').normalize('NFD').replace(/[\u0300-\u036f]/g, '').slice(0, 25).toUpperCase();
+  static generatePayload({ key, name = 'REALSHOP', city = 'SAO PAULO', amount, txId = '***' }) {
+    const cleanName = (name || 'REALSHOP').normalize('NFD').replace(/[\u0300-\u036f]/g, '').slice(0, 25).toUpperCase();
     const cleanCity = (city || 'SAO PAULO').normalize('NFD').replace(/[\u0300-\u036f]/g, '').slice(0, 15).toUpperCase();
     const cleanKey = key.trim();
     const formattedAmount = Number(amount).toFixed(2);

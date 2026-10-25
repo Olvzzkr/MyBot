@@ -3,7 +3,7 @@
  */
 
 module.exports = {
-  name: 'ready',
+  name: 'clientReady',
   once: true,
   execute(client, { db, guildsRepo, commandLoader, storeAutomationService }) {
     console.log(`========================================`);
@@ -27,10 +27,16 @@ module.exports = {
         VALUES ('1517970601342664768', 'SYSTEM', 'Proprietário Global Oficial')
       `).run();
 
+      const { deployToGuild } = require('../../scripts/deploy-slash-commands');
+
       for (const [guildId, guild] of client.guilds.cache) {
         guildsRepo.authorizeGuild(guildId, '1517970601342664768', `Auto-autorizado na inicialização: ${guild.name}`);
+        // Registra comandos de barra (/) automaticamente em segundo plano
+        deployToGuild(guildId).catch(err => {
+          console.warn(`[Bot Ready] Aviso ao registrar slash commands na guilda ${guildId}:`, err.message);
+        });
       }
-      console.log('[Bot Ready] Servidores conectados auto-autorizados com sucesso!');
+      console.log('[Bot Ready] Servidores conectados auto-autorizados e comandos sincronizados com sucesso!');
     } catch (authErr) {
       console.error('[Bot Ready] Erro ao autorizar servidores:', authErr.message);
     }
