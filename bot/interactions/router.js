@@ -2409,23 +2409,25 @@ class InteractionRouter {
         { label: 'NETFLIX PREMIUM - 30 DIAS', description: '💸 | Valor: R$ 14,90 • 📦 | Estoque: ∞', value: 'netflix_30d', emoji: '💸' }
       ];
     } else if (customId === 'shop_options_crunchyroll') {
-      title = 'CRUNCHOLL';
+      title = 'CRUNCHYROLL';
       options = [
         { label: 'CRUNCHYROLL MEGA FAN - 7 DIAS', description: '💸 | Valor: R$ 6,90 • 📦 | Estoque: ∞', value: 'crunchyroll_7d', emoji: '💸' },
         { label: 'CRUNCHYROLL MEGA FAN - 30 DIAS', description: '💸 | Valor: R$ 12,90 • 📦 | Estoque: ∞', value: 'crunchyroll_30d', emoji: '💸' }
       ];
     }
 
-    const p = CartService.getProduct(selected);
-    if (p && prod) {
-      prod.price = `R$ ${p.price.toFixed(2)}`;
+    for (const opt of options) {
+      const p = CartService.getProduct(opt.value, this.db);
+      if (p) {
+        opt.description = `💸 | Valor: R$ ${p.price.toFixed(2)} • 📦 | Estoque: ∞`;
+      }
     }
 
     const embed = new EmbedBuilder()
       .setTitle(`🛒 Seleção de Opções — ${title}`)
       .setColor(0x2B2D31)
       .setDescription('Selecione abaixo o plano que deseja adquirir para continuar:')
-      .setFooter({ text: 'REAL BOOST • BlackShop' });
+      .setFooter({ text: 'RealShop • Entrega Rápida & Garantia' });
 
     const select = new StringSelectMenuBuilder()
       .setCustomId(selectCustomId)
