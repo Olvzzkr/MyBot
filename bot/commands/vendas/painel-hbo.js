@@ -29,26 +29,26 @@ module.exports = {
     }
 
     const embed = new EmbedBuilder()
-      .setColor(0x2B2D31)
+      .setColor(0x5822B4)
       .setDescription(
         '⚡ **Entrega Automática!**\n\n' +
-        '### HB0 M4X\n' +
+        '### MAX (HBO MAX)\n' +
         'DETALHES DO PLANO\n' +
-        '• Plano Premium\n' +
+        '• Plano Platinum (Qualidade 4K Ultra HD)\n' +
         '• Até 4 telas simultâneas\n' +
-        '• Qualidade Ultra HD (4K) + HDR\n' +
-        '• Catálogo completo (filmes, séries, jogos e lançamentos)\n' +
-        '• Pagamento seguro\n' +
+        '• Áudio Dolby Atmos e HDR10\n' +
+        '• Catálogo completo (Warner, DC, HBO, Discovery e Champions League)\n' +
+        '• Pagamento seguro via PIX\n' +
         '• Garantia de até 14 dias\n\n' +
         'BENEFÍCIOS EXCLUSIVOS\n' +
-        '• Qualidade 4K Ultra HD\n' +
-        '• Acesso aos principais lançamentos\n' +
+        '• Qualidade 4K Ultra HD sem travamentos\n' +
+        '• Acesso aos maiores lançamentos do cinema\n' +
         '• Sem limitações de conteúdo\n' +
-        '• Melhor desempenho em TVs, consoles e PC\n\n' +
+        '• Melhor desempenho em TVs, consoles, celulares e PC\n\n' +
         '**A partir de** `R$ 7,90`\n' +
         'Clique no botão **"Ver opções"** para ver as variações disponíveis'
       )
-      .setFooter({ text: 'REAL BOOST • BlackShop' });
+      .setFooter({ text: 'RealShop • Entrega Rápida & Garantia' });
 
     if (fs.existsSync(bannerPath)) {
       embed.setImage('attachment://banner_hbo.png');
