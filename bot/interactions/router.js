@@ -2368,70 +2368,107 @@ class InteractionRouter {
   async handleShopStreamingOptions(interaction) {
     const customId = interaction.customId;
     let title = '';
+    let emoji = '🎬';
+    let color = 0x2B2D31;
     let selectCustomId = 'shop_select_streaming';
     let options = [];
 
     if (customId === 'shop_options_youtube') {
-      title = 'YOUTUB3 PR3M1UM';
+      title = 'YouTube Premium';
+      emoji = '▶️';
+      color = 0xFF0000;
       options = [
-        { label: 'YOUTUBE PREMIUM - CONVITE', description: '💸 | Valor: R$ 8,90 • 📦 | Estoque: ∞', value: 'yt_convite', emoji: '💸' },
-        { label: 'YOUTUBE PREMIUM ( ADM FAMILIA )', description: '💸 | Valor: R$ 22,90 • 📦 | Estoque: ∞', value: 'yt_adm_familia', emoji: '💸' }
+        { label: 'YouTube Premium • Convite', description: 'Ativação direta na sua conta Gmail', value: 'yt_convite', emoji: '🎵' },
+        { label: 'YouTube Premium • ADM Família', description: 'Painel próprio Administrador de Família', value: 'yt_adm_familia', emoji: '👑' }
       ];
     } else if (customId === 'shop_options_prime') {
-      title = 'PR1ME V1DE0';
+      title = 'Prime Video';
+      emoji = '📦';
+      color = 0x00A8E1;
       options = [
-        { label: 'PRIME VIDEO PREMIUM - 7 DIAS', description: '💸 | Valor: R$ 7,90 • 📦 | Estoque: ∞', value: 'prime_7d', emoji: '💸' },
-        { label: 'PRIME VIDEO PREMIUM - 30 DIAS', description: '💸 | Valor: R$ 13,90 • 📦 | Estoque: ∞', value: 'prime_30d', emoji: '💸' },
-        { label: 'PRIME VIDEO PREMIUM + NBA LEAGUE PASS - 30 DIAS', description: '💸 | Valor: R$ 24,90 • 📦 | Estoque: ∞', value: 'prime_nba_30d', emoji: '💸' }
+        { label: 'Prime Video • 7 Dias', description: 'Acesso completo Filmes & Séries', value: 'prime_7d', emoji: '📺' },
+        { label: 'Prime Video • 30 Dias', description: 'Acesso mensal completo', value: 'prime_30d', emoji: '📺' },
+        { label: 'Prime Video + NBA • 30 Dias', description: 'Inclui NBA League Pass ao vivo', value: 'prime_nba_30d', emoji: '🏀' }
       ];
     } else if (customId === 'shop_options_paramount') {
-      title = 'P4R4M0NT';
+      title = 'Paramount+';
+      emoji = '⭐';
+      color = 0x0064FF;
       options = [
-        { label: 'PARAMOUNT PREMIUM - 7 DIAS', description: '💸 | Valor: R$ 7,90 • 📦 | Estoque: ∞', value: 'paramount_7d', emoji: '💸' },
-        { label: 'PARAMOUNT PREMIUM - 30 DIAS', description: '💸 | Valor: R$ 12,90 • 📦 | Estoque: ∞', value: 'paramount_30d', emoji: '💸' }
+        { label: 'Paramount+ • 7 Dias', description: 'Acesso completo séries & filmes', value: 'paramount_7d', emoji: '📺' },
+        { label: 'Paramount+ • 30 Dias', description: 'Acesso mensal completo', value: 'paramount_30d', emoji: '📺' }
       ];
     } else if (customId === 'shop_options_disney') {
-      title = 'D1SN3Y PLUS';
+      title = 'Disney+';
+      emoji = '🏰';
+      color = 0x113CCF;
       options = [
-        { label: 'DISNEY PREMIUM - 7 DIAS', description: '💸 | Valor: R$ 12,90 • 📦 | Estoque: ∞', value: 'disney_7d', emoji: '💸' },
-        { label: 'DISNEY PREMIUM - 30 DIAS', description: '💸 | Valor: R$ 19,90 • 📦 | Estoque: ∞', value: 'disney_30d', emoji: '💸' }
+        { label: 'Disney+ • 7 Dias', description: 'Disney, Marvel, Star+ & ESPN inclusos', value: 'disney_7d', emoji: '✨' },
+        { label: 'Disney+ • 30 Dias', description: 'Disney, Marvel, Star+ & ESPN inclusos', value: 'disney_30d', emoji: '✨' }
       ];
     } else if (customId === 'shop_options_hbo') {
-      title = 'HB0 M4X';
+      title = 'Max (HBO Max)';
+      emoji = '🟣';
+      color = 0x5822B4;
       options = [
-        { label: 'HBOMAX PLATINUM - 7 DIAS', description: '💸 | Valor: R$ 7,90 • 📦 | Estoque: ∞', value: 'hbo_7d', emoji: '💸' },
-        { label: 'HBOMAX PLATINUM - 30 DIAS', description: '💸 | Valor: R$ 14,90 • 📦 | Estoque: ∞', value: 'hbo_30d', emoji: '💸' }
+        { label: 'Max Platinum • 7 Dias', description: 'Qualidade 4K Ultra HD + Dolby Atmos', value: 'hbo_7d', emoji: '🎥' },
+        { label: 'Max Platinum • 30 Dias', description: 'Qualidade 4K Ultra HD + Dolby Atmos', value: 'hbo_30d', emoji: '🎥' }
       ];
     } else if (customId === 'shop_options_netflix') {
-      title = 'N3TFL1X';
+      title = 'Netflix Premium';
+      emoji = '🍿';
+      color = 0xE50914;
       options = [
-        { label: 'NETFLIX PREMIUM - 7 DIAS', description: '💸 | Valor: R$ 8,90 • 📦 | Estoque: ∞', value: 'netflix_7d', emoji: '💸' },
-        { label: 'NETFLIX PREMIUM - 30 DIAS', description: '💸 | Valor: R$ 14,90 • 📦 | Estoque: ∞', value: 'netflix_30d', emoji: '💸' }
+        { label: 'Netflix Premium • 7 Dias', description: 'Qualidade Ultra HD (4K) com suporte', value: 'netflix_7d', emoji: '🎬' },
+        { label: 'Netflix Premium • 30 Dias', description: 'Qualidade Ultra HD (4K) com suporte', value: 'netflix_30d', emoji: '🎬' }
       ];
     } else if (customId === 'shop_options_crunchyroll') {
-      title = 'CRUNCHYROLL';
+      title = 'Crunchyroll Mega Fan';
+      emoji = '🍥';
+      color = 0xF47521;
       options = [
-        { label: 'CRUNCHYROLL MEGA FAN - 7 DIAS', description: '💸 | Valor: R$ 6,90 • 📦 | Estoque: ∞', value: 'crunchyroll_7d', emoji: '💸' },
-        { label: 'CRUNCHYROLL MEGA FAN - 30 DIAS', description: '💸 | Valor: R$ 12,90 • 📦 | Estoque: ∞', value: 'crunchyroll_30d', emoji: '💸' }
+        { label: 'Crunchyroll Mega Fan • 7 Dias', description: 'Animes sem anúncios em 1080p', value: 'crunchyroll_7d', emoji: '🦊' },
+        { label: 'Crunchyroll Mega Fan • 30 Dias', description: 'Animes sem anúncios em 1080p', value: 'crunchyroll_30d', emoji: '🦊' }
       ];
     }
 
     for (const opt of options) {
       const p = CartService.getProduct(opt.value, this.db);
       if (p) {
-        opt.description = `💸 | Valor: R$ ${p.price.toFixed(2)} • 📦 | Estoque: ∞`;
+        opt.description = `💸 R$ ${p.price.toFixed(2)} • ${opt.description}`;
+        if (opt.description.length > 100) opt.description = opt.description.slice(0, 97) + '...';
       }
     }
 
+    const planItems = options.map(opt => {
+      const p = CartService.getProduct(opt.value, this.db);
+      const priceFormatted = p ? `R$ ${p.price.toFixed(2)}` : 'Consulte';
+      return `> ${opt.emoji || '🔹'} **${opt.label}**\n> 💰 **Valor:** \`${priceFormatted}\` • 📦 **Estoque:** \`Disponível Imediato\``;
+    }).join('\n\n');
+
     const embed = new EmbedBuilder()
-      .setTitle(`🛒 Seleção de Opções — ${title}`)
-      .setColor(0x2B2D31)
-      .setDescription('Selecione abaixo o plano que deseja adquirir para continuar:')
-      .setFooter({ text: 'RealShop • Entrega Rápida & Garantia' });
+      .setTitle(`${emoji} ${title} — Opções & Planos`)
+      .setColor(color)
+      .setDescription(
+        `Olá, **${interaction.user.username}**! 👋\n` +
+        `Confira abaixo os planos disponíveis para **${title}** e escolha a melhor opção para você:\n\n` +
+        `### 🛒 **Planos Disponíveis:**\n` +
+        `${planItems}\n\n` +
+        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+        `⚡ **Entrega:** Automática e instantânea via carrinho\n` +
+        `🛡️ **Garantia:** Acesso verificado com suporte exclusivo\n` +
+        `💳 **Pagamento:** PIX com aprovação em segundos\n` +
+        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+        `👇 **Selecione o plano desejado no menu suspenso abaixo:**`
+      )
+      .setFooter({
+        text: 'RealShop • Entrega Rápida & Garantia',
+        iconURL: interaction.client.user.displayAvatarURL()
+      });
 
     const select = new StringSelectMenuBuilder()
       .setCustomId(selectCustomId)
-      .setPlaceholder('Escolha seu plano...')
+      .setPlaceholder('🔽 Clique aqui para escolher seu plano...')
       .addOptions(options);
 
     const row = new ActionRowBuilder().addComponents(select);
