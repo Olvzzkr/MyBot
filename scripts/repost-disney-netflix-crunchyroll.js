@@ -58,22 +58,23 @@ const PANELS = [
     bannerName: 'banner_crunchyroll.png',
     description:
       '⚡ **Entrega Automática!**\n\n' +
-      '### CRUNCHOLL\n' +
+      '### CRUNCHYROLL MEGA FAN\n' +
       'DETALHES DO PLANO\n' +
-      '• Plano Premium\n' +
-      '• Até 4 telas simultâneas\n' +
-      '• Qualidade Ultra HD (4K) + HDR\n' +
-      '• Catálogo completo (filmes, séries, jogos e lançamentos)\n' +
-      '• Pagamento seguro\n' +
-      '• Garantia de até 14 dias\n\n' +
+      '• Plano Mega Fan (Sem Anúncios)\n' +
+      '• Qualidade Full HD (1080p)\n' +
+      '• Episódios logo após o lançamento no Japão\n' +
+      '• Catálogo completo de animes, filmes e mangás\n' +
+      '• Pagamento seguro via PIX\n' +
+      '• Suporte e garantia exclusivos\n\n' +
       'BENEFÍCIOS EXCLUSIVOS\n' +
-      '• Qualidade 4K Ultra HD\n' +
-      '• Acesso aos principais lançamentos\n' +
-      '• Sem limitações de conteúdo\n' +
-      '• Melhor desempenho em TVs, consoles e PC\n\n' +
+      '• Assista em qualquer dispositivo (TV, Celular, PC, Console)\n' +
+      '• Download de episódios para assistir offline\n' +
+      '• Sem propagandas ou limitações\n' +
+      '• Entrega rápida e automática\n\n' +
       '**A partir de** `R$ 6,90`\n' +
       'Clique no botão **"Ver opções"** para ver as variações disponíveis',
-    customId: 'shop_options_crunchyroll'
+    customId: 'shop_options_crunchyroll',
+    color: 0xF47521
   }
 ];
 
@@ -97,9 +98,9 @@ client.once('ready', async () => {
       }
 
       const embed = new EmbedBuilder()
-        .setColor(0x2B2D31)
+        .setColor(p.color || 0x2B2D31)
         .setDescription(p.description)
-        .setFooter({ text: 'REAL BOOST • BlackShop' });
+        .setFooter({ text: 'RealShop • Entrega Rápida & Garantia' });
 
       if (files.length > 0) {
         embed.setImage(`attachment://${p.bannerName}`);
