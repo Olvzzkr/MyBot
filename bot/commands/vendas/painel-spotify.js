@@ -23,57 +23,45 @@ module.exports = {
     }
 
     const files = [];
-
-    // Thumbnail: Logo BlackShop
-    const logoPath = path.join(__dirname, '../../assets/blackshop-banner.jpg');
-    if (fs.existsSync(logoPath)) {
-      files.push(new AttachmentBuilder(logoPath, { name: 'shop_logo.jpg' }));
-    }
-
-    // Banner Opcional
     const bannerPath = path.join(__dirname, '../../assets/spotify-banner.png');
-    const bannerJpg = path.join(__dirname, '../../assets/spotify-banner.jpg');
-    let hasBanner = false;
     if (fs.existsSync(bannerPath)) {
       files.push(new AttachmentBuilder(bannerPath, { name: 'banner_spotify.png' }));
-      hasBanner = true;
-    } else if (fs.existsSync(bannerJpg)) {
-      files.push(new AttachmentBuilder(bannerJpg, { name: 'banner_spotify.jpg' }));
-      hasBanner = true;
     }
 
     const embed = new EmbedBuilder()
-      .setTitle('Spotify Premium')
-      .setColor(0x2B2D31)
+      .setColor(0x1DB954)
       .setDescription(
-        '**Spotify – Plano de 1 Mês**\n\n' +
-        '• Acesso à conta mediante fornecimento de e-mail e senha para login.\n' +
-        '• Conta disponibilizada com o plano Premium devidamente ativado. A conta será exclusiva para seu uso.\n\n' +
-        '**Spotify – Link de 1/3 Mês**\n\n' +
-        'Você receberá um link para ativação diretamente em sua conta. Importante: a conta não pode ter utilizado o plano Premium anteriormente.\n\n' +
-        '**Spotify – Plano de 1 Ano**\n\n' +
-        '• Você receberá uma conta com plano Premium de 1 ano, incluindo garantia de 30 dias. Após a entrega, enviaremos todo o passo a passo necessário para utilização do produto.\n\n\n' +
-        '⚡ **Entrega Automática!**\n\n\n' +
-        'Preço: **De R$ 5,50 a R$ 39,90**'
-      );
+        '⚡ **Entrega Automática!**\n\n' +
+        '### SPOTIFY PREMIUM\n' +
+        'DETALHES DO PLANO\n' +
+        '• Plano Premium Individual / Familiar\n' +
+        '• Ouça músicas e podcasts sem nenhum anúncio\n' +
+        '• Pule faixas ilimitadamente e escolha qualquer música\n' +
+        '• Qualidade máxima de reprodução (320 kbps)\n' +
+        '• Modo Offline: baixe suas playlists favoritas\n' +
+        '• Pagamento seguro via PIX com entrega instantânea\n\n' +
+        'BENEFÍCIOS EXCLUSIVOS\n' +
+        '• Sem comerciais ou limitações de reprodução\n' +
+        '• Compatível com Celular, PC, Smart TVs, Alexa e Som automotivo\n' +
+        '• Opções em Link de Ativação direta ou Conta Pronta\n' +
+        '• Suporte dedicado e garantia exclusiva\n\n' +
+        '**A partir de** `R$ 5,50`\n' +
+        'Selecione no menu abaixo o plano desejado para comprar:'
+      )
+      .setFooter({ text: 'RealShop • Entrega Rápida & Garantia' });
 
-    if (fs.existsSync(logoPath)) {
-      embed.setThumbnail('attachment://shop_logo.jpg');
-    }
-
-    if (hasBanner) {
-      embed.setImage(fs.existsSync(bannerPath) ? 'attachment://banner_spotify.png' : 'attachment://banner_spotify.jpg');
+    if (fs.existsSync(bannerPath)) {
+      embed.setImage('attachment://banner_spotify.png');
     }
 
     const select = new StringSelectMenuBuilder()
       .setCustomId('shop_select_spotify')
-      .setPlaceholder('Selecione uma opção...')
+      .setPlaceholder('🔽 Clique aqui para escolher seu plano...')
       .addOptions([
-        { label: 'Spotify 1 mes – LINK', description: '💸 | Valor: R$ 5,50 • 📦 | Estoque: 25', value: 'spot_link_1m', emoji: '💸' },
-        { label: 'Spotify 3 mes – LINK', description: '💸 | Valor: R$ 8,90 • 📦 | Estoque: 45', value: 'spot_link_3m', emoji: '💸' },
-        { label: 'Conta Spotify 1 mes', description: '💸 | Valor: R$ 15,90 • 📦 | Estoque: 1', value: 'spot_conta_1m', emoji: '💸' },
-        { label: 'Conta Spotify 3 mes', description: '💸 | Valor: R$ 8,99 • 📦 | Estoque: Esgotado', value: 'spot_conta_3m', emoji: '💸' },
-        { label: 'Conta Spotify anual (1 ano)', description: '💸 | Valor: R$ 39,90 • 📦 | Estoque: 2', value: 'spot_conta_1y', emoji: '💸' }
+        { label: 'Spotify 1 Mês — Link Ativação', description: '💸 R$ 5,50 • Ativação direta na sua conta pessoal', value: 'spot_link_1m', emoji: '🎵' },
+        { label: 'Spotify 3 Meses — Link Ativação', description: '💸 R$ 8,90 • Ativação direta na sua conta pessoal', value: 'spot_link_3m', emoji: '🎵' },
+        { label: 'Conta Spotify 1 Mês — Privada', description: '💸 R$ 15,90 • Conta pronta exclusiva com Premium', value: 'spot_conta_1m', emoji: '🎧' },
+        { label: 'Conta Spotify Anual (1 Ano)', description: '💸 R$ 39,90 • 12 meses de Premium garantido', value: 'spot_conta_1y', emoji: '👑' }
       ]);
 
     const row = new ActionRowBuilder().addComponents(select);
