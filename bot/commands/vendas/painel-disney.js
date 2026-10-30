@@ -29,26 +29,26 @@ module.exports = {
     }
 
     const embed = new EmbedBuilder()
-      .setColor(0x2B2D31)
+      .setColor(0x113CCF)
       .setDescription(
         '⚡ **Entrega Automática!**\n\n' +
-        '### D1SN3Y PLUS\n' +
+        '### DISNEY+ PREMIUM\n' +
         'DETALHES DO PLANO\n' +
-        '• Plano Premium\n' +
+        '• Plano Premium (Qualidade 4K Ultra HD + HDR)\n' +
         '• Até 4 telas simultâneas\n' +
-        '• Qualidade Ultra HD (4K) + HDR\n' +
-        '• Catálogo completo (filmes, séries, jogos e lançamentos)\n' +
-        '• Pagamento seguro\n' +
-        '• Garantia de até 14 dias\n\n' +
+        '• Catálogo completo: Disney, Pixar, Marvel, Star Wars, NatGeo & ESPN\n' +
+        '• Possibilidade de assistir offline (download liberado)\n' +
+        '• Pagamento seguro via PIX\n' +
+        '• Suporte e garantia exclusivos\n\n' +
         'BENEFÍCIOS EXCLUSIVOS\n' +
-        '• Qualidade 4K Ultra HD\n' +
-        '• Acesso aos principais lançamentos\n' +
-        '• Sem limitações de conteúdo\n' +
-        '• Melhor desempenho em TVs, consoles e PC\n\n' +
+        '• Qualidade 4K Ultra HD e som imersivo\n' +
+        '• Acesso aos maiores sucessos e originais exclusivos\n' +
+        '• Sem anúncios e sem limitações\n' +
+        '• Melhor desempenho em Smart TVs, consoles, celulares e PC\n\n' +
         '**A partir de** `R$ 12,90`\n' +
         'Clique no botão **"Ver opções"** para ver as variações disponíveis'
       )
-      .setFooter({ text: 'REAL BOOST • BlackShop' });
+      .setFooter({ text: 'RealShop • Entrega Rápida & Garantia' });
 
     if (fs.existsSync(bannerPath)) {
       embed.setImage('attachment://banner_disney.png');
