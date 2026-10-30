@@ -29,26 +29,26 @@ module.exports = {
     }
 
     const embed = new EmbedBuilder()
-      .setColor(0x2B2D31)
+      .setColor(0x0064FF)
       .setDescription(
         '⚡ **Entrega Automática!**\n\n' +
-        '### P4R4M0NT\n' +
+        '### PARAMOUNT+ PREMIUM\n' +
         'DETALHES DO PLANO\n' +
-        '• Plano Premium\n' +
+        '• Plano Premium (Qualidade Full HD & 4K)\n' +
         '• Até 4 telas simultâneas\n' +
-        '• Qualidade Ultra HD (4K) + HDR\n' +
-        '• Catálogo completo (filmes, séries, jogos e lançamentos)\n' +
-        '• Pagamento seguro\n' +
-        '• Garantia de até 14 dias\n\n' +
+        '• Catálogo completo: Paramount Originals, SHOWTIME e filmes clássicos\n' +
+        '• Transmissões esportivas ao vivo (Libertadores & Sul-Americana)\n' +
+        '• Pagamento seguro via PIX com aprovação imediata\n' +
+        '• Suporte e garantia dedicados\n\n' +
         'BENEFÍCIOS EXCLUSIVOS\n' +
-        '• Qualidade 4K Ultra HD\n' +
-        '• Acesso aos principais lançamentos\n' +
-        '• Sem limitações de conteúdo\n' +
-        '• Melhor desempenho em TVs, consoles e PC\n\n' +
+        '• Streaming de alta qualidade e sem anúncios\n' +
+        '• Acesso às produções de sucesso e estreias imperdíveis\n' +
+        '• Sem limitações de catálogo\n' +
+        '• Melhor desempenho em Smart TVs, consoles, celulares e PC\n\n' +
         '**A partir de** `R$ 7,90`\n' +
         'Clique no botão **"Ver opções"** para ver as variações disponíveis'
       )
-      .setFooter({ text: 'REAL BOOST • BlackShop' });
+      .setFooter({ text: 'RealShop • Entrega Rápida & Garantia' });
 
     if (fs.existsSync(bannerPath)) {
       embed.setImage('attachment://banner_paramount.png');
