@@ -64,21 +64,21 @@ function probeDiscordConnectivity(timeoutMs = 10000) {
   return new Promise((resolve, reject) => {
     let settled = false;
     let timeout;
-    const finish = error => {
+    const finish = (error, result) => {
       if (settled) return;
       settled = true;
       clearTimeout(timeout);
       if (error) reject(error);
-      else resolve();
+      else resolve(result);
     };
 
     const request = https.get('https://discord.com/api/v10/gateway', response => {
       response.resume();
-      if (response.statusCode === 200) {
-        finish();
-      } else {
-        finish(new Error(`Discord Gateway respondeu HTTP ${response.statusCode}.`));
-      }
+      finish(null, {
+        statusCode: response.statusCode,
+        retryAfter: response.headers['retry-after'],
+        rateLimitScope: response.headers['x-ratelimit-scope']
+      });
     });
     timeout = setTimeout(() => {
       request.destroy(new Error(`Tempo limite de ${timeoutMs}ms ao acessar Discord Gateway.`));
@@ -103,6 +103,14 @@ function createClient() {
       Partials.Message,
       Partials.GuildMember
     ]
+  });
+
+  cli.rest.on('rateLimited', rateLimit => {
+    console.error(
+      `[Bot Diagnóstico] Discord REST rate limit: ${rateLimit.method} ${rateLimit.route}; ` +
+      `scope=${rateLimit.scope}; retryAfter=${Math.ceil(rateLimit.retryAfter / 1000)}s; ` +
+      `global=${rateLimit.global}.`
+    );
   });
 
   const storeAutomationService = new StoreAutomationService(cli, db);
@@ -296,10 +304,18 @@ async function startBot() {
   console.log('[Bot] Verificando conexão com o Gateway...');
 
   try {
-    await probeDiscordConnectivity();
-    console.log('[Bot Diagnóstico] HTTPS para discord.com/api/v10/gateway respondeu normalmente.');
+    const response = await probeDiscordConnectivity();
+    if (response.statusCode === 200) {
+      console.log('[Bot Diagnóstico] HTTPS para discord.com/api/v10/gateway respondeu normalmente.');
+    } else {
+      console.warn(
+        `[Bot Diagnóstico] Discord Gateway respondeu HTTP ${response.statusCode}; ` +
+        `rateLimitScope=${response.rateLimitScope || 'indisponível'}; ` +
+        `retryAfter=${response.retryAfter || 'indisponível'}.`
+      );
+    }
   } catch (error) {
-    console.error('[Bot Diagnóstico] Falha no teste HTTPS do Discord:', error.message);
+    console.error('[Bot Diagnóstico] Falha de rede no teste HTTPS do Discord:', error.message);
   }
 
   const loginStartedAt = Date.now();
