@@ -7,6 +7,7 @@ require('dotenv').config();
 
 const { Client, GatewayIntentBits, Partials } = require('discord.js');
 const path = require('node:path');
+const https = require('node:https');
 
 const { getDatabase } = require('../database/connection');
 const { runMigrations } = require('../database/migrate');
@@ -58,6 +59,34 @@ const messageCreateEvent = require('./events/messageCreate');
 const interactionCreateEvent = require('./events/interactionCreate');
 const guildMemberAddEvent = require('./events/guildMemberAdd');
 const guildMemberRemoveEvent = require('./events/guildMemberRemove');
+
+function probeDiscordConnectivity(timeoutMs = 10000) {
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    let timeout;
+    const finish = error => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      if (error) reject(error);
+      else resolve();
+    };
+
+    const request = https.get('https://discord.com/api/v10/gateway', response => {
+      response.resume();
+      if (response.statusCode === 200) {
+        finish();
+      } else {
+        finish(new Error(`Discord Gateway respondeu HTTP ${response.statusCode}.`));
+      }
+    });
+    timeout = setTimeout(() => {
+      request.destroy(new Error(`Tempo limite de ${timeoutMs}ms ao acessar Discord Gateway.`));
+    }, timeoutMs);
+
+    request.once('error', finish);
+  });
+}
 
 // 6. Criar cliente Discord
 function createClient() {
@@ -267,6 +296,21 @@ async function startBot() {
   console.log('[Bot] Verificando conexão com o Gateway...');
 
   try {
+    await probeDiscordConnectivity();
+    console.log('[Bot Diagnóstico] HTTPS para discord.com/api/v10/gateway respondeu normalmente.');
+  } catch (error) {
+    console.error('[Bot Diagnóstico] Falha no teste HTTPS do Discord:', error.message);
+  }
+
+  const loginStartedAt = Date.now();
+  const loginDiagnosticTimer = setTimeout(() => {
+    console.error(
+      `[Bot Diagnóstico] client.login continua pendente após ${Math.round((Date.now() - loginStartedAt) / 1000)}s. ` +
+      `Estado WebSocket: ${client.ws.status}.`
+    );
+  }, 30000);
+
+  try {
     await client.login(token);
 
     console.log(
@@ -292,6 +336,8 @@ async function startBot() {
         dbError
       );
     }
+  } finally {
+    clearTimeout(loginDiagnosticTimer);
   }
 }
 
