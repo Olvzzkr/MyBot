@@ -1,3 +1,4 @@
+
 /**
  * Ponto de entrada do Bot Discord
  */
@@ -39,7 +40,7 @@ console.log(`[Bot] Carregados ${loadStats.commandCount} comandos com ${loadStats
 // 4. Instanciar Roteador de Interações
 const interactionRouter = new InteractionRouter(db, authService);
 
-// 6. Registrar Eventos
+// 5. Registrar Eventos
 const readyEvent = require('./events/ready');
 const messageCreateEvent = require('./events/messageCreate');
 const interactionCreateEvent = require('./events/interactionCreate');
@@ -100,6 +101,7 @@ let client = createClient(true);
 // 6. Tratamento de Falhas e Resiliência
 process.on('unhandledRejection', (reason, promise) => {
   console.error('[Bot Resiliência] Rejeição não tratada:', reason);
+
   try {
     db.prepare(`
       INSERT INTO system_events (component, event_level, message, error_stack)
@@ -110,6 +112,7 @@ process.on('unhandledRejection', (reason, promise) => {
 
 process.on('uncaughtException', (err) => {
   console.error('[Bot Resiliência] Exceção não tratada:', err);
+
   try {
     db.prepare(`
       INSERT INTO system_events (component, event_level, message, error_stack)
@@ -118,24 +121,58 @@ process.on('uncaughtException', (err) => {
   } catch {}
 });
 
-// 7. Conexão ao Discord com Fallback Inteligente
+// 7. Conexão ao Discord com diagnóstico e fallback
 const token = process.env.DISCORD_BOT_TOKEN;
+
 if (!token || token === 'seu_token_do_bot_aqui') {
-  console.log('[Bot] ⚠️ DISCORD_BOT_TOKEN não configurado no .env.');
+  console.error('[Bot] ❌ DISCORD_BOT_TOKEN não configurado.');
 } else {
-  client.login(token).catch(async (err) => {
-    if (err.message && err.message.includes('disallowed intents')) {
-      console.warn('[Bot] ⚠️ Intents privilegiados desativados no portal. Conectando com intents padrão para manter o bot ONLINE...');
-      try {
-        client.destroy();
-      } catch {}
-      client = createClient(false);
-      await client.login(token);
-      console.log(`[Bot] ✅ ONLINE com intents padrão! (Para comandos de texto funcionarem, ative Message Content Intent no portal).`);
-    } else {
-      console.error('[Bot] Falha ao autenticar no Discord:', err.message);
-    }
+  console.log('[Bot] 🔄 Iniciando autenticação com o Discord...');
+
+  client.on('error', (err) => {
+    console.error('[Bot] Erro no cliente Discord:', err);
   });
+
+  client.on('shardError', (err) => {
+    console.error('[Bot] Erro no Gateway:', err);
+  });
+
+  client.on('shardDisconnect', (event, shardId) => {
+    console.error(`[Bot] Gateway desconectado. Shard: ${shardId}. Código: ${event.code}`);
+  });
+
+  client.on('shardReconnecting', (shardId) => {
+    console.warn(`[Bot] Reconectando ao Discord. Shard: ${shardId}`);
+  });
+
+  client.login(token)
+    .then(() => {
+      console.log('[Bot] ✅ Autenticação iniciada com sucesso.');
+    })
+    .catch(async (err) => {
+      console.error('[Bot] ❌ Falha ao autenticar:', err);
+
+      if (err.message?.includes('disallowed intents')) {
+        console.warn('[Bot] Tentando conexão com intents padrão...');
+
+        try {
+          client.destroy();
+        } catch {}
+
+        client = createClient(false);
+
+        client.on('error', (fallbackError) => {
+          console.error('[Bot] Erro no cliente Discord (fallback):', fallbackError);
+        });
+
+        try {
+          await client.login(token);
+          console.log('[Bot] ✅ Autenticação iniciada com intents padrão.');
+        } catch (fallbackError) {
+          console.error('[Bot] ❌ Falha no fallback:', fallbackError);
+        }
+      }
+    });
 }
 
 module.exports = {
@@ -144,3 +181,4 @@ module.exports = {
   commandLoader,
   authService
 };
+                      
