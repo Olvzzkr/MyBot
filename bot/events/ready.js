@@ -5,7 +5,7 @@
 module.exports = {
   name: 'clientReady',
   once: true,
-  execute(client, { db, guildsRepo, commandLoader, storeAutomationService }) {
+  execute(client, { db, guildsRepo, commandLoader, storeAutomationService, scheduledMessagesService }) {
     console.log(`========================================`);
     console.log(`🤖 Bot conectado como: ${client.user.tag}`);
     console.log(`📡 Servidores conectados: ${client.guilds.cache.size}`);
@@ -17,6 +17,14 @@ module.exports = {
         storeAutomationService.start();
       } catch (err) {
         console.error('[Bot Ready] Falha ao iniciar StoreAutomationService:', err);
+      }
+    }
+
+    if (scheduledMessagesService) {
+      try {
+        scheduledMessagesService.start();
+      } catch (err) {
+        console.error('[Bot Ready] Falha ao iniciar ScheduledMessagesService:', err);
       }
     }
 

@@ -29,6 +29,7 @@ const protectionService = new ProtectionService(db);
 const SetupGalleryService = require('./services/setupGalleryService');
 const setupGalleryService = new SetupGalleryService(db);
 const StoreAutomationService = require('./services/storeAutomationService');
+const { ScheduledMessagesService } = require('./services/scheduledMessagesService');
 
 // 3. Carregar Comandos
 const commandLoader = new CommandLoader();
@@ -63,12 +64,14 @@ function createClient(privileged = true) {
   });
 
   const storeAutomationService = new StoreAutomationService(cli, db);
+  const scheduledMessagesService = new ScheduledMessagesService(cli, db);
 
   cli.once(readyEvent.name, (...args) => readyEvent.execute(...args, {
     db,
     guildsRepo,
     commandLoader,
-    storeAutomationService
+    storeAutomationService,
+    scheduledMessagesService
   }));
 
   cli.on(messageCreateEvent.name, (message) => messageCreateEvent.execute(message, {

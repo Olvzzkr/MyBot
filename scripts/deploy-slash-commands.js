@@ -5,6 +5,7 @@
 
 require('dotenv').config();
 const { REST, Routes, SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
+const { RESENHA_GUILD_ID, SCHEDULED_MESSAGES_GUILD_IDS } = require('../shared/constants');
 
 const CLIENT_ID = process.env.DISCORD_CLIENT_ID || '1561883923301277716';
 const GUILDS = ['1553633196296511498', '1562230954594934887', '1563369608205963325'];
@@ -314,17 +315,44 @@ const commands = [
   new SlashCommandBuilder()
     .setName('painel-virgem')
     .setDescription('Envia o painel oficial de Contas Virgens Discord no canal atual')
-    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+
+  // 40. /trancar-canais
+  new SlashCommandBuilder()
+    .setName('trancar-canais')
+    .setDescription('Libera leitura ao cargo Membro e tranca o envio, exceto em Geral, Mídias e Setup')
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageChannels),
+
+  // 41. /recriar-downloads
+  new SlashCommandBuilder()
+    .setName('recriar-downloads')
+    .setDescription('Copia e verifica Downloads antes de recriar seus canais')
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageChannels),
+
+  // 42. /mensagens
+  new SlashCommandBuilder()
+    .setName('mensagens')
+    .setDescription('Configura mensagens automáticas e mensagens cadastradas')
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
 ].map(c => c.toJSON());
 
 const rest = new REST({ version: '10' }).setToken(TOKEN);
+
+function getCommandsForGuild(guildId) {
+  const guildCommands = guildId === RESENHA_GUILD_ID
+    ? commands
+    : commands.filter(command => !['trancar-canais', 'recriar-downloads'].includes(command.name));
+  return SCHEDULED_MESSAGES_GUILD_IDS.includes(guildId)
+    ? guildCommands
+    : guildCommands.filter(command => command.name !== 'mensagens');
+}
 
 async function deployToGuild(guildId, clientId = CLIENT_ID, token = TOKEN) {
   try {
     const r = new REST({ version: '10' }).setToken(token);
     const data = await r.put(
       Routes.applicationGuildCommands(clientId, guildId),
-      { body: commands }
+      { body: getCommandsForGuild(guildId) }
     );
     console.log(`[Slash] ✅ ${data.length} comandos registrados no servidor ${guildId}!`);
     return data;
@@ -344,4 +372,4 @@ if (require.main === module) {
   deploy();
 }
 
-module.exports = { commands, deployToGuild, deploy };
+module.exports = { commands, getCommandsForGuild, deployToGuild, deploy };

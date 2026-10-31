@@ -17,6 +17,35 @@ class SetupGalleryService {
     return row?.setup_channel_id || '1553647551352275074';
   }
 
+  isSetupChannel(message) {
+    const configuredChannelId = this.getSetupChannelId(message.guild.id);
+    if (message.channel.id === configuredChannelId) return true;
+    if (message.guild.channels.cache.has(configuredChannelId)) return false;
+
+    const setupChannels = [...message.guild.channels.cache.values()].filter(channel =>
+      channel.isTextBased() &&
+      /(?:^|[^a-z])setups?(?:$|[^a-z])/i.test(channel.name)
+    );
+
+    if (setupChannels.length !== 1 || setupChannels[0].id !== message.channel.id) {
+      return false;
+    }
+
+    this.db.prepare(`
+      INSERT INTO guild_settings (guild_id, setup_channel_id)
+      VALUES (?, ?)
+      ON CONFLICT(guild_id) DO UPDATE SET
+        setup_channel_id = excluded.setup_channel_id,
+        updated_at = datetime('now', 'utc')
+    `).run(message.guild.id, message.channel.id);
+
+    console.warn(
+      `[SetupGallery] Canal configurado antigo (${configuredChannelId}) não existe. ` +
+      `Galeria de setups atualizada para #${message.channel.name} (${message.channel.id}).`
+    );
+    return true;
+  }
+
   /**
    * Processa mensagens enviadas no canal de setups
    * @param {import('discord.js').Message} message
@@ -25,8 +54,7 @@ class SetupGalleryService {
   async handleMessage(message) {
     if (message.author.bot || !message.guild) return false;
 
-    const setupChannelId = this.getSetupChannelId(message.guild.id);
-    if (message.channel.id !== setupChannelId) return false;
+    if (!this.isSetupChannel(message)) return false;
 
     const { author, channel, guild } = message;
 

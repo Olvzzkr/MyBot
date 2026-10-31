@@ -11,6 +11,8 @@ const {
   TextInputBuilder, 
   TextInputStyle, 
   StringSelectMenuBuilder,
+  ChannelSelectMenuBuilder,
+  ChannelType,
   PermissionFlagsBits 
 } = require('discord.js');
 const ConfirmationsRepository = require('../../database/repositories/confirmationsRepository');
@@ -21,6 +23,7 @@ class InteractionRouter {
     this.db = db;
     this.authService = authService;
     this.confirmationsRepo = new ConfirmationsRepository(db);
+    this.downloadsRestoreGuilds = new Set();
   }
 
   async handleInteraction(interaction) {
@@ -34,11 +37,19 @@ class InteractionRouter {
       return this.handleModalSubmit(interaction);
     }
 
-    if (!interaction.isStringSelectMenu() && !interaction.isButton()) {
+    if (!interaction.isStringSelectMenu() && !interaction.isChannelSelectMenu() && !interaction.isButton()) {
       return;
     }
 
     const { customId, guild, member } = interaction;
+
+    if (customId.startsWith('messages:')) {
+      return this.handleScheduledMessagesComponent(interaction);
+    }
+
+    if (customId.startsWith('downloads_restore:')) {
+      return this.handleDownloadsRestoreConfirmation(interaction);
+    }
 
     // 1. Painel de Seleção de Cargos Autoatribuíveis
     if (customId === 'role_panel_select') {
@@ -548,6 +559,33 @@ class InteractionRouter {
 
   async handleModalSubmit(interaction) {
     const { customId, fields } = interaction;
+    if (customId.startsWith('messages:modal:')) {
+      const [, , ownerId, channelId] = customId.split(':');
+      if (ownerId !== interaction.user.id) {
+        return interaction.reply({ content: '❌ Apenas quem abriu este painel pode cadastrar a mensagem.', ephemeral: true });
+      }
+
+      if (!this.canManageScheduledMessages(interaction)) {
+        return interaction.reply({ content: '❌ Você precisa da permissão **Gerenciar Servidor** no servidor Resenha.', ephemeral: true });
+      }
+
+      const content = fields.getTextInputValue('scheduled_message_content').trim();
+      const channel = interaction.guild.channels.cache.get(channelId);
+      if (!content || !channel || ![ChannelType.GuildText, ChannelType.GuildAnnouncement].includes(channel.type)) {
+        return interaction.reply({ content: '❌ O canal ou a mensagem não são válidos. Abra o painel novamente e tente de novo.', ephemeral: true });
+      }
+
+      this.db.prepare(`
+        INSERT INTO scheduled_messages (guild_id, channel_id, content, created_by)
+        VALUES (?, ?, ?, ?)
+      `).run(interaction.guildId, channelId, content, interaction.user.id);
+
+      return interaction.reply({
+        content: `✅ Mensagem cadastrada para envio em ${channel}.\nEla será enviada diariamente no horário configurado em **Mensagens Automáticas**.`,
+        ephemeral: true
+      });
+    }
+
     if (customId.startsWith('cart_coupon_modal:')) {
       const cartId = customId.split(':')[1];
       const couponCode = fields.getTextInputValue('coupon_input');
@@ -756,6 +794,118 @@ class InteractionRouter {
     const { commandName, options, guild, member, user } = interaction;
     const { EmbedBuilder } = require('discord.js');
 
+    if (commandName === 'mensagens') {
+      const { SCHEDULED_MESSAGES_GUILD_IDS } = require('../../shared/constants');
+      if (!guild || !SCHEDULED_MESSAGES_GUILD_IDS.includes(guild.id)) {
+        return interaction.reply({ content: '❌ Este comando só pode ser usado nos servidores Resenha e RealShop.', ephemeral: true });
+      }
+      if (!member?.permissions?.has(PermissionFlagsBits.ManageGuild)) {
+        return interaction.reply({ content: '❌ Você precisa da permissão **Gerenciar Servidor** para configurar mensagens.', ephemeral: true });
+      }
+
+      const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId(`messages:auto:${user.id}`)
+          .setLabel('Mensagens Automáticas')
+          .setStyle(ButtonStyle.Primary),
+        new ButtonBuilder()
+          .setCustomId(`messages:manage:${user.id}`)
+          .setLabel('Mensagem')
+          .setStyle(ButtonStyle.Secondary)
+      );
+      return interaction.reply({
+        content: '📨 **Painel de mensagens**\nEscolha uma opção:',
+        components: [row],
+        ephemeral: true
+      });
+    }
+
+    if (commandName === 'recriar-downloads') {
+      const { RESENHA_GUILD_ID } = require('../../shared/constants');
+      if (!guild || guild.id !== RESENHA_GUILD_ID) {
+        return interaction.reply({
+          content: '❌ Este comando só pode ser usado no servidor Resenha.',
+          ephemeral: true
+        });
+      }
+
+      if (!member?.permissions?.has(PermissionFlagsBits.ManageChannels)) {
+        return interaction.reply({
+          content: '❌ Você precisa da permissão **Gerenciar Canais** para usar este comando.',
+          ephemeral: true
+        });
+      }
+
+      await interaction.deferReply({ ephemeral: true });
+      const { inspectDownloads } = require('../services/downloadsRestoreService');
+      let preview;
+      try {
+        preview = await inspectDownloads(guild);
+      } catch (error) {
+        return interaction.editReply({ content: `❌ ${error.message}` });
+      }
+
+      const confirmRow = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId(`downloads_restore:confirm:${user.id}`)
+          .setLabel('Confirmar cópia e recriação')
+          .setStyle(ButtonStyle.Danger),
+        new ButtonBuilder()
+          .setCustomId(`downloads_restore:cancel:${user.id}`)
+          .setLabel('Cancelar')
+          .setStyle(ButtonStyle.Secondary)
+      );
+      return interaction.editReply({
+        content: `⚠️ **Confirme a recriação de ${preview.categoryName}.**\n` +
+          `Serão copiados e verificados **${preview.channelCount} canais**, ` +
+          `**${preview.messageCount} mensagens** e **${preview.attachmentCount} anexos**. ` +
+          'A categoria e os canais antigos só serão excluídos depois da cópia verificada. ' +
+          'As mensagens novas serão publicadas pelo bot com atribuição ao autor original; reações e autoria nativa não são transferidas.',
+        components: [confirmRow]
+      });
+    }
+
+    if (commandName === 'trancar-canais') {
+      const { RESENHA_GUILD_ID } = require('../../shared/constants');
+      if (!guild || guild.id !== RESENHA_GUILD_ID) {
+        return interaction.reply({
+          content: '❌ Este comando só pode ser usado no servidor Resenha.',
+          ephemeral: true
+        });
+      }
+
+      if (!member?.permissions?.has(PermissionFlagsBits.ManageChannels)) {
+        return interaction.reply({
+          content: '❌ Você precisa da permissão **Gerenciar Canais** para usar este comando.',
+          ephemeral: true
+        });
+      }
+
+      await interaction.deferReply({ ephemeral: true });
+      const botMember = guild.members.me || await guild.members.fetch(interaction.client.user.id);
+      const { lockGuildTextChannels } = require('../services/channelLockService');
+      let result;
+      try {
+        result = await lockGuildTextChannels(guild, botMember, user.tag);
+      } catch (error) {
+        console.error('[Trancar Canais] Falha ao atualizar permissões:', error);
+        return interaction.editReply({ content: `❌ Não foi possível atualizar as permissões: ${error.message}` });
+      }
+      const failureDetails = result.failedChannels
+        .slice(0, 6)
+        .map(channel => `• **#${channel.name.slice(0, 60)}**: ${channel.reason.slice(0, 120)}`);
+      const omittedFailures = result.failedChannels.length - failureDetails.length;
+      const response = [
+        `🔒 Canais trancados: **${result.lockedCount}**.`,
+        `🔓 Canais preservados: **${result.skippedExemptCount}** (Geral, Mídias e Setup).`,
+        result.failedChannels.length > 0
+          ? `⚠️ Não foi possível trancar **${result.failedChannels.length}** canal(is):\n${failureDetails.join('\n')}${omittedFailures > 0 ? `\n• E mais ${omittedFailures} canal(is).` : ''}`
+          : null
+      ].filter(Boolean);
+
+      return interaction.editReply({ content: response.join('\n') });
+    }
+
     // /avatar
     if (commandName === 'avatar') {
       const targetUser = options.getUser('usuario') || user;
@@ -794,7 +944,7 @@ class InteractionRouter {
         .setDescription('Você pode executar comandos usando **/** (Slash Commands), com o prefixo **?** ou me mencionando **@Nexora**!')
         .setColor(0x5865F2)
         .addFields(
-          { name: '🛠️ Moderação', value: '`/ban`, `/kick`, `/timeout`, `/advertir`, `/avisos`, `/limpar`, `/quarentena`' },
+          { name: '🛠️ Moderação', value: '`/ban`, `/kick`, `/timeout`, `/advertir`, `/avisos`, `/limpar`, `/quarentena`, `/trancar-canais` (Resenha)' },
           { name: '👑 Cargos & Setup', value: '`/cargo listar`, `/cargo setup`, `/autoserver`' },
           { name: 'ℹ️ Informações', value: '`/servidor`, `/avatar`, `/ajuda`' },
           { name: '💻 Painel Web', value: '[Acessar Painel de Controle](http://localhost:5173)' }
@@ -1391,6 +1541,220 @@ class InteractionRouter {
       content: `⚡ Comando de barra \`/${commandName}\` recebido e processado com sucesso!`,
       ephemeral: true
     });
+  }
+
+  canManageScheduledMessages(interaction) {
+    const { SCHEDULED_MESSAGES_GUILD_IDS } = require('../../shared/constants');
+    return SCHEDULED_MESSAGES_GUILD_IDS.includes(interaction.guildId)
+      && interaction.member?.permissions?.has(PermissionFlagsBits.ManageGuild);
+  }
+
+  async handleScheduledMessagesComponent(interaction) {
+    const [, action, ownerId, value] = interaction.customId.split(':');
+    if (ownerId !== interaction.user.id) {
+      return interaction.reply({ content: '❌ Apenas quem abriu este painel pode usá-lo.', ephemeral: true });
+    }
+    if (!this.canManageScheduledMessages(interaction)) {
+      return interaction.reply({ content: '❌ Você precisa da permissão **Gerenciar Servidor** no servidor Resenha.', ephemeral: true });
+    }
+
+    if (action === 'auto') {
+      return this.showScheduledMessagesSettings(interaction);
+    }
+    if (action === 'manage') {
+      return this.showScheduledMessagesList(interaction);
+    }
+    if (action === 'home') {
+      const rows = [
+        new ActionRowBuilder().addComponents(
+          new ButtonBuilder().setCustomId(`messages:auto:${ownerId}`).setLabel('Mensagens Automáticas').setStyle(ButtonStyle.Primary),
+          new ButtonBuilder().setCustomId(`messages:manage:${ownerId}`).setLabel('Mensagem').setStyle(ButtonStyle.Secondary)
+        )
+      ];
+      return interaction.update({ content: '📨 **Painel de mensagens**\nEscolha uma opção:', components: rows });
+    }
+    if (action === 'enable' || action === 'disable') {
+      this.db.prepare(`
+        INSERT INTO message_automation_settings (guild_id, enabled, updated_by)
+        VALUES (?, ?, ?)
+        ON CONFLICT(guild_id) DO UPDATE SET
+          enabled = excluded.enabled,
+          updated_at = datetime('now', 'utc'),
+          updated_by = excluded.updated_by
+      `).run(interaction.guildId, action === 'enable' ? 1 : 0, interaction.user.id);
+      return this.showScheduledMessagesSettings(interaction, '✅ Configuração de ativação atualizada.');
+    }
+    if (action === 'hour') {
+      const hour = Number(value);
+      if (!Number.isInteger(hour) || hour < 0 || hour > 23) {
+        return interaction.reply({ content: '❌ Horário inválido.', ephemeral: true });
+      }
+      this.db.prepare(`
+        INSERT INTO message_automation_settings (guild_id, send_hour, updated_by)
+        VALUES (?, ?, ?)
+        ON CONFLICT(guild_id) DO UPDATE SET
+          send_hour = excluded.send_hour,
+          updated_at = datetime('now', 'utc'),
+          updated_by = excluded.updated_by
+      `).run(interaction.guildId, hour, interaction.user.id);
+      return this.showScheduledMessagesSettings(interaction, `✅ Horário diário definido para **${String(hour).padStart(2, '0')}:00** (Brasília).`);
+    }
+    if (action === 'add') {
+      const row = new ActionRowBuilder().addComponents(
+        new ChannelSelectMenuBuilder()
+          .setCustomId(`messages:channel:${ownerId}`)
+          .setPlaceholder('Escolha o canal para esta mensagem')
+          .setChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement)
+          .setMinValues(1)
+          .setMaxValues(1)
+      );
+      const back = new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId(`messages:manage:${ownerId}`).setLabel('Voltar').setStyle(ButtonStyle.Secondary)
+      );
+      return interaction.update({ content: 'Selecione o canal onde a mensagem será enviada:', components: [row, back] });
+    }
+    if (action === 'channel' && interaction.isChannelSelectMenu()) {
+      const channelId = interaction.values[0];
+      const modal = new ModalBuilder()
+        .setCustomId(`messages:modal:${ownerId}:${channelId}`)
+        .setTitle('Cadastrar mensagem automática');
+      const input = new TextInputBuilder()
+        .setCustomId('scheduled_message_content')
+        .setLabel('Mensagem que será enviada diariamente')
+        .setStyle(TextInputStyle.Paragraph)
+        .setPlaceholder('Digite o texto da mensagem')
+        .setMaxLength(4000)
+        .setRequired(true);
+      modal.addComponents(new ActionRowBuilder().addComponents(input));
+      return interaction.showModal(modal);
+    }
+    if (action === 'delete' && interaction.isStringSelectMenu()) {
+      const messageId = Number(interaction.values[0]);
+      const result = this.db.prepare('DELETE FROM scheduled_messages WHERE id = ? AND guild_id = ?')
+        .run(messageId, interaction.guildId);
+      return this.showScheduledMessagesList(interaction, result.changes ? '✅ Mensagem removida.' : '⚠️ Essa mensagem já não está cadastrada.');
+    }
+
+    return interaction.reply({ content: '❌ Esta opção do painel não é válida.', ephemeral: true });
+  }
+
+  async showScheduledMessagesSettings(interaction, notice = '') {
+    const setting = this.db.prepare(`
+      SELECT enabled, send_hour FROM message_automation_settings WHERE guild_id = ?
+    `).get(interaction.guildId) || { enabled: 0, send_hour: 12 };
+    const ownerId = interaction.user.id;
+    const activationRow = new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId(`messages:enable:${ownerId}`).setLabel('Ativar').setStyle(ButtonStyle.Success),
+      new ButtonBuilder().setCustomId(`messages:disable:${ownerId}`).setLabel('Desativar').setStyle(ButtonStyle.Danger)
+    );
+    const hours = [6, 9, 12, 15, 18, 21, 0];
+    const hourRows = [];
+    for (let index = 0; index < hours.length; index += 4) {
+      hourRows.push(new ActionRowBuilder().addComponents(
+        ...hours.slice(index, index + 4).map(hour => new ButtonBuilder()
+          .setCustomId(`messages:hour:${ownerId}:${hour}`)
+          .setLabel(`${String(hour).padStart(2, '0')}:00`)
+          .setStyle(setting.send_hour === hour ? ButtonStyle.Primary : ButtonStyle.Secondary))
+      ));
+    }
+    const backRow = new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId(`messages:home:${ownerId}`).setLabel('Voltar').setStyle(ButtonStyle.Secondary)
+    );
+    const status = setting.enabled ? '🟢 Ativadas' : '🔴 Desativadas';
+    const content = `${notice ? `${notice}\n` : ''}⏰ **Mensagens Automáticas**\n` +
+      `Status: ${status}\nHorário atual: **${String(setting.send_hour).padStart(2, '0')}:00** — Brasília.\n` +
+      'Escolha um horário entre 06:00 e 00:00 (opções em intervalos de 3 horas). Todas as mensagens cadastradas serão enviadas diariamente.';
+    return interaction.update({ content, components: [activationRow, ...hourRows, backRow] });
+  }
+
+  async showScheduledMessagesList(interaction, notice = '') {
+    const messages = this.db.prepare(`
+      SELECT id, channel_id, content FROM scheduled_messages WHERE guild_id = ? ORDER BY id
+    `).all(interaction.guildId);
+    const ownerId = interaction.user.id;
+    const description = messages.length
+      ? messages.slice(0, 15).map(message => `**${message.id}.** <#${message.channel_id}> — ${message.content.replace(/\s+/g, ' ').slice(0, 90)}`).join('\n')
+      : 'Nenhuma mensagem cadastrada ainda.';
+    const components = [
+      new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId(`messages:add:${ownerId}`).setLabel('Cadastrar mensagem').setStyle(ButtonStyle.Primary)
+      )
+    ];
+    if (messages.length) {
+      components.push(new ActionRowBuilder().addComponents(
+        new StringSelectMenuBuilder()
+          .setCustomId(`messages:delete:${ownerId}`)
+          .setPlaceholder('Selecione uma mensagem para remover')
+          .addOptions(messages.slice(0, 25).map(message => ({
+            label: `Mensagem ${message.id} • ${message.content.replace(/\s+/g, ' ').slice(0, 70)}`.slice(0, 100),
+            value: String(message.id),
+            description: `Canal: ${message.channel_id}`
+          })))
+      ));
+    }
+    components.push(new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId(`messages:home:${ownerId}`).setLabel('Voltar').setStyle(ButtonStyle.Secondary)
+    ));
+    return interaction.update({
+      content: `${notice ? `${notice}\n` : ''}📝 **Mensagens cadastradas (${messages.length})**\n${description}\n\nAs mensagens são enviadas diariamente no horário configurado, quando a automação estiver ativada.`,
+      components
+    });
+  }
+
+  async handleDownloadsRestoreConfirmation(interaction) {
+    const [, action, ownerId] = interaction.customId.split(':');
+    const { RESENHA_GUILD_ID } = require('../../shared/constants');
+
+    if (ownerId !== interaction.user.id) {
+      return interaction.reply({
+        content: '❌ Apenas quem iniciou o comando pode confirmar ou cancelar.',
+        ephemeral: true
+      });
+    }
+
+    if (action === 'cancel') {
+      return interaction.update({ content: '✅ Recriação cancelada. Nenhum canal foi alterado.', components: [] });
+    }
+
+    if (interaction.guildId !== RESENHA_GUILD_ID ||
+        !interaction.member?.permissions?.has(PermissionFlagsBits.ManageChannels)) {
+      return interaction.update({
+        content: '❌ A confirmação não é válida para este servidor ou membro.',
+        components: []
+      });
+    }
+
+    if (this.downloadsRestoreGuilds.has(interaction.guildId)) {
+      return interaction.update({
+        content: '⏳ Já existe uma recriação em andamento neste servidor.',
+        components: []
+      });
+    }
+
+    this.downloadsRestoreGuilds.add(interaction.guildId);
+    await interaction.update({
+      content: '⏳ Iniciando cópia da categoria Downloads. Os canais originais permanecem intactos até a cópia ser verificada.',
+      components: []
+    });
+
+    try {
+      const { restoreDownloads } = require('../services/downloadsRestoreService');
+      const result = await restoreDownloads(interaction.guild, {
+        actorTag: interaction.user.tag,
+        onProgress: content => interaction.editReply({ content })
+      });
+      const summary = result.deletionFailures.length > 0
+        ? `⚠️ A cópia foi verificada (${result.channelCount} canais, ${result.copiedMessageCount} mensagens e ${result.copiedAttachmentCount} anexos), mas não consegui excluir todos os originais. A cópia antiga restante está em **${result.backupCategoryName}**:\n${result.deletionFailures.slice(0, 8).map(error => `• ${error}`).join('\n')}`
+        : `✅ Categoria Downloads recriada. Foram copiados e verificados **${result.channelCount} canais**, **${result.copiedMessageCount} mensagens** e **${result.copiedAttachmentCount} anexos** antes de remover os originais.`;
+      return interaction.editReply({ content: summary });
+    } catch (error) {
+      console.error('[Downloads Restore] Falha na recriação:', error);
+      return interaction.editReply({
+        content: `❌ A recriação não foi concluída: ${error.message}`
+      });
+    } finally {
+      this.downloadsRestoreGuilds.delete(interaction.guildId);
+    }
   }
 
   async handleRolePanelSelect(interaction) {

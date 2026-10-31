@@ -162,6 +162,9 @@ O bot combina a hierarquia nativa de cargos do Discord com permissões RBAC inte
 - `?caso <número>` - Consulta detalhes de uma ocorrência específica.
 - `?historico [@membro]` - Lista histórico de punições da guilda ou usuário.
 - `?limpar <1-100> [motivo]` - Exclusão de mensagens (com dupla confirmação para ≥ 50).
+- `/trancar-canais` - No servidor Resenha, libera leitura para o cargo **👤 Membro** e bloqueia o envio nos demais canais de texto, preservando Geral, Mídias e Setup (requer **Gerenciar Canais**).
+- `/recriar-downloads` - No servidor Resenha, copia e verifica mensagens/anexos em Downloads antes de remover e recriar a categoria e seus canais. Exige confirmação no próprio comando; autoria nativa e reações não são transferidas (requer **Gerenciar Canais**).
+- `/mensagens` - Nos servidores Resenha e RealShop, abre um painel para cadastrar várias mensagens e canais de destino, ativar/desativar o envio automático diário e escolher um horário entre 06:00 e 00:00 em intervalos de três horas (fuso de Brasília). Requer **Gerenciar Servidor**.
 
 ### Proteção e Segurança
 - `?protecao status` - Consulta regras anti-spam, anti-mass-mention e limites ativos.
