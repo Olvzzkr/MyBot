@@ -4,14 +4,17 @@
  */
 
 require('dotenv').config();
+
 const { Client, GatewayIntentBits, Partials } = require('discord.js');
 const path = require('node:path');
 
 const { getDatabase } = require('../database/connection');
 const { runMigrations } = require('../database/migrate');
+
 const GuildsRepository = require('../database/repositories/guildsRepository');
 const PermissionsRepository = require('../database/repositories/permissionsRepository');
 const AuditRepository = require('../database/repositories/auditRepository');
+
 const AuthService = require('./services/authService');
 const CommandLoader = require('./commands/loader');
 const InteractionRouter = require('./interactions/router');
@@ -20,165 +23,286 @@ const InteractionRouter = require('./interactions/router');
 const db = getDatabase();
 runMigrations(db);
 
-// 2. Instanciar Repositórios e Serviços
+// 2. Instanciar repositórios e serviços
 const guildsRepo = new GuildsRepository(db);
 const permsRepo = new PermissionsRepository(db);
 const auditRepo = new AuditRepository(db);
 const authService = new AuthService(db);
+
 const ProtectionService = require('./services/protectionService');
 const protectionService = new ProtectionService(db);
+
 const SetupGalleryService = require('./services/setupGalleryService');
 const setupGalleryService = new SetupGalleryService(db);
+
 const StoreAutomationService = require('./services/storeAutomationService');
 const { ScheduledMessagesService } = require('./services/scheduledMessagesService');
 
-// 3. Carregar Comandos
+// 3. Carregar comandos
 const commandLoader = new CommandLoader();
-const loadStats = commandLoader.loadAll(path.join(__dirname, 'commands'));
-console.log(`[Bot] Carregados ${loadStats.commandCount} comandos com ${loadStats.aliasCount} aliases.`);
 
-// 4. Instanciar Roteador de Interações
+const loadStats = commandLoader.loadAll(
+  path.join(__dirname, 'commands')
+);
+
+console.log(
+  `[Bot] Carregados ${loadStats.commandCount} comandos com ${loadStats.aliasCount} aliases.`
+);
+
+// 4. Instanciar roteador de interações
 const interactionRouter = new InteractionRouter(db, authService);
 
-// 5. Registrar Eventos
+// 5. Registrar eventos
 const readyEvent = require('./events/ready');
 const messageCreateEvent = require('./events/messageCreate');
 const interactionCreateEvent = require('./events/interactionCreate');
 const guildMemberAddEvent = require('./events/guildMemberAdd');
 const guildMemberRemoveEvent = require('./events/guildMemberRemove');
 
-function createClient(privileged = true) {
-  const intents = [
-    GatewayIntentBits.Guilds,
-    GatewayIntentBits.GuildModeration,
-    GatewayIntentBits.GuildMessages
-  ];
-
-  if (privileged) {
-    intents.push(GatewayIntentBits.GuildMembers);
-    intents.push(GatewayIntentBits.MessageContent);
-  }
-
+// 6. Criar cliente Discord
+function createClient() {
   const cli = new Client({
-    intents,
-    partials: [Partials.Channel, Partials.Message, Partials.GuildMember]
+    intents: [
+      GatewayIntentBits.Guilds,
+      GatewayIntentBits.GuildModeration,
+      GatewayIntentBits.GuildMessages,
+      GatewayIntentBits.GuildMembers,
+      GatewayIntentBits.MessageContent
+    ],
+    partials: [
+      Partials.Channel,
+      Partials.Message,
+      Partials.GuildMember
+    ]
   });
 
   const storeAutomationService = new StoreAutomationService(cli, db);
   const scheduledMessagesService = new ScheduledMessagesService(cli, db);
 
-  cli.once(readyEvent.name, (...args) => readyEvent.execute(...args, {
-    db,
-    guildsRepo,
-    commandLoader,
-    storeAutomationService,
-    scheduledMessagesService
-  }));
+  // Evento de inicialização
+  cli.once(readyEvent.name, (...args) => {
+    console.log('[Bot Diagnóstico] Evento clientReady recebido.');
 
-  cli.on(messageCreateEvent.name, (message) => messageCreateEvent.execute(message, {
-    db,
-    guildsRepo,
-    permsRepo,
-    auditRepo,
-    authService,
-    commandLoader,
-    protectionService,
-    setupGalleryService
-  }));
+    try {
+      readyEvent.execute(...args, {
+        db,
+        guildsRepo,
+        commandLoader,
+        storeAutomationService,
+        scheduledMessagesService
+      });
+    } catch (error) {
+      console.error('[Bot Ready] Erro durante a inicialização:', error);
+    }
+  });
 
-  cli.on(interactionCreateEvent.name, (interaction) => interactionCreateEvent.execute(interaction, {
-    interactionRouter
-  }));
+  // Mensagens
+  cli.on(messageCreateEvent.name, (message) => {
+    try {
+      Promise.resolve(
+        messageCreateEvent.execute(message, {
+          db,
+          guildsRepo,
+          permsRepo,
+          auditRepo,
+          authService,
+          commandLoader,
+          protectionService,
+          setupGalleryService
+        })
+      ).catch(error => {
+        console.error('[Bot] Erro no evento messageCreate:', error);
+      });
+    } catch (error) {
+      console.error('[Bot] Erro ao processar messageCreate:', error);
+    }
+  });
 
-  cli.on(guildMemberAddEvent.name, (member) => guildMemberAddEvent.execute(member, { db }));
-  cli.on(guildMemberRemoveEvent.name, (member) => guildMemberRemoveEvent.execute(member, { db }));
+  // Interações
+  cli.on(interactionCreateEvent.name, (interaction) => {
+    try {
+      Promise.resolve(
+        interactionCreateEvent.execute(interaction, {
+          interactionRouter
+        })
+      ).catch(error => {
+        console.error('[Bot] Erro no evento interactionCreate:', error);
+      });
+    } catch (error) {
+      console.error('[Bot] Erro ao processar interactionCreate:', error);
+    }
+  });
+
+  // Entrada de membros
+  cli.on(guildMemberAddEvent.name, (member) => {
+    try {
+      Promise.resolve(
+        guildMemberAddEvent.execute(member, { db })
+      ).catch(error => {
+        console.error('[Bot] Erro no evento guildMemberAdd:', error);
+      });
+    } catch (error) {
+      console.error('[Bot] Erro ao processar guildMemberAdd:', error);
+    }
+  });
+
+  // Saída de membros
+  cli.on(guildMemberRemoveEvent.name, (member) => {
+    try {
+      Promise.resolve(
+        guildMemberRemoveEvent.execute(member, { db })
+      ).catch(error => {
+        console.error('[Bot] Erro no evento guildMemberRemove:', error);
+      });
+    } catch (error) {
+      console.error('[Bot] Erro ao processar guildMemberRemove:', error);
+    }
+  });
+
+  // Diagnóstico do cliente
+  cli.on('error', (error) => {
+    console.error('[Bot Diagnóstico] Erro no cliente Discord:', error);
+  });
+
+  cli.on('shardError', (error, shardId) => {
+    console.error(
+      `[Bot Diagnóstico] Erro no Gateway. Shard ${shardId}:`,
+      error
+    );
+  });
+
+  cli.on('shardDisconnect', (event, shardId) => {
+    console.error(
+      `[Bot Diagnóstico] Gateway desconectado. Shard ${shardId}. Código: ${event.code}. Motivo: ${event.reason || 'Não informado'}`
+    );
+  });
+
+  cli.on('shardReconnecting', (shardId) => {
+    console.warn(
+      `[Bot Diagnóstico] Tentando reconectar. Shard: ${shardId}`
+    );
+  });
+
+  cli.on('shardReady', (shardId) => {
+    console.log(
+      `[Bot Diagnóstico] Gateway conectado. Shard: ${shardId}`
+    );
+  });
+
+  cli.on('debug', (info) => {
+    if (
+      info.includes('Heartbeat') ||
+      info.includes('WebSocket')
+    ) {
+      console.log(`[Bot Gateway] ${info}`);
+    }
+  });
 
   return cli;
 }
 
-let client = createClient(true);
+// 7. Criar cliente
+const client = createClient();
 
-// 6. Tratamento de Falhas e Resiliência
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('[Bot Resiliência] Rejeição não tratada:', reason);
+// 8. Registrar falhas do processo
+process.on('unhandledRejection', (reason) => {
+  console.error(
+    '[Bot Resiliência] Rejeição não tratada:',
+    reason
+  );
 
   try {
     db.prepare(`
-      INSERT INTO system_events (component, event_level, message, error_stack)
+      INSERT INTO system_events
+      (component, event_level, message, error_stack)
       VALUES ('BOT', 'CRITICAL', 'Unhandled Promise Rejection', ?)
-    `).run(String(reason));
-  } catch {}
+    `).run(
+      reason?.stack || String(reason)
+    );
+  } catch (dbError) {
+    console.error(
+      '[Bot Resiliência] Falha ao registrar erro no banco:',
+      dbError
+    );
+  }
 });
 
-process.on('uncaughtException', (err) => {
-  console.error('[Bot Resiliência] Exceção não tratada:', err);
+process.on('uncaughtException', (error) => {
+  console.error(
+    '[Bot Resiliência] Exceção não tratada:',
+    error
+  );
 
   try {
     db.prepare(`
-      INSERT INTO system_events (component, event_level, message, error_stack)
+      INSERT INTO system_events
+      (component, event_level, message, error_stack)
       VALUES ('BOT', 'CRITICAL', ?, ?)
-    `).run(err.message, err.stack);
-  } catch {}
+    `).run(
+      error.message,
+      error.stack
+    );
+  } catch (dbError) {
+    console.error(
+      '[Bot Resiliência] Falha ao registrar erro no banco:',
+      dbError
+    );
+  }
+
+  process.exit(1);
 });
 
-// 7. Conexão ao Discord com diagnóstico e fallback
-const token = process.env.DISCORD_BOT_TOKEN;
+// 9. Autenticar no Discord
+async function startBot() {
+  const token = process.env.DISCORD_BOT_TOKEN;
 
-if (!token || token === 'seu_token_do_bot_aqui') {
-  console.error('[Bot] ❌ DISCORD_BOT_TOKEN não configurado.');
-} else {
+  if (!token || token === 'seu_token_do_bot_aqui') {
+    console.error(
+      '[Bot] ❌ DISCORD_BOT_TOKEN não configurado no ambiente.'
+    );
+    return;
+  }
+
   console.log('[Bot] 🔄 Iniciando autenticação com o Discord...');
+  console.log('[Bot] Verificando conexão com o Gateway...');
 
-  client.on('error', (err) => {
-    console.error('[Bot] Erro no cliente Discord:', err);
-  });
+  try {
+    await client.login(token);
 
-  client.on('shardError', (err) => {
-    console.error('[Bot] Erro no Gateway:', err);
-  });
+    console.log(
+      '[Bot] ✅ Solicitação de autenticação concluída. Aguardando clientReady...'
+    );
+  } catch (error) {
+    console.error('[Bot] ❌ Falha na autenticação:', error);
+    console.error('[Bot] Código:', error.code || 'Não informado');
+    console.error('[Bot] Mensagem:', error.message);
 
-  client.on('shardDisconnect', (event, shardId) => {
-    console.error(`[Bot] Gateway desconectado. Shard: ${shardId}. Código: ${event.code}`);
-  });
-
-  client.on('shardReconnecting', (shardId) => {
-    console.warn(`[Bot] Reconectando ao Discord. Shard: ${shardId}`);
-  });
-
-  client.login(token)
-    .then(() => {
-      console.log('[Bot] ✅ Autenticação iniciada com sucesso.');
-    })
-    .catch(async (err) => {
-      console.error('[Bot] ❌ Falha ao autenticar:', err);
-
-      if (err.message?.includes('disallowed intents')) {
-        console.warn('[Bot] Tentando conexão com intents padrão...');
-
-        try {
-          client.destroy();
-        } catch {}
-
-        client = createClient(false);
-
-        client.on('error', (fallbackError) => {
-          console.error('[Bot] Erro no cliente Discord (fallback):', fallbackError);
-        });
-
-        try {
-          await client.login(token);
-          console.log('[Bot] ✅ Autenticação iniciada com intents padrão.');
-        } catch (fallbackError) {
-          console.error('[Bot] ❌ Falha no fallback:', fallbackError);
-        }
-      }
-    });
+    try {
+      db.prepare(`
+        INSERT INTO system_events
+        (component, event_level, message, error_stack)
+        VALUES ('BOT', 'CRITICAL', ?, ?)
+      `).run(
+        `Falha na autenticação Discord: ${error.message}`,
+        error.stack || String(error)
+      );
+    } catch (dbError) {
+      console.error(
+        '[Bot] Não foi possível registrar a falha no banco:',
+        dbError
+      );
+    }
+  }
 }
 
+// 10. Iniciar bot
+startBot();
+
+// 11. Exportar referências
 module.exports = {
   client,
   getClient: () => client,
   commandLoader,
   authService
 };
-                      
+    
